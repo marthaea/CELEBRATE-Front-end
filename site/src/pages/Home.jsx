@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { api, useLoad } from "../../../src/api.js";
 import { usePlan } from "../../../src/plan.jsx";
-import { Art, ErrorNote, Loading, ServiceCard } from "../components.jsx";
+import { Art, Mark, ErrorNote, Loading, ServiceCard } from "../components.jsx";
 
 export default function Home() {
   const plan = usePlan();
@@ -20,8 +20,10 @@ export default function Home() {
         <div className="hero-panel"><Art photo="hero-left" eager /></div>
         <div className="hero-panel"><Art photo="hero-right" eager /></div>
         <div className="hero-centre">
+          <Mark className="hero-mark" />
           <h1 className="wordmark large">CELEBRATE</h1>
-          <a href="#intro" className="link-caps on-dark">Enter</a>
+          <p className="hero-line">Tukusanyukidde. Every event service, one grand total.</p>
+          <Link to="/services" className="button fit sun">Plan my event</Link>
         </div>
       </section>
 
@@ -45,7 +47,7 @@ export default function Home() {
 
       <section className="block">
         <div className="block-head">
-          <h2 className="caps">Services</h2>
+          <h2>Everything for the day</h2>
           <Link to="/services" className="link-caps">All services</Link>
         </div>
         {meta.loading && <Loading />}
@@ -61,7 +63,7 @@ export default function Home() {
 
       <section className="block" id="offers">
         <div className="block-head">
-          <h2 className="caps">Offers this week</h2>
+          <h2>Offers this week</h2>
           <Link to="/services?filter=offers" className="link-caps">All offers</Link>
         </div>
         <ErrorNote>{offers.error}</ErrorNote>
@@ -74,7 +76,7 @@ export default function Home() {
       <section className="feature">
         <Art photo="feature" className="feature-art" />
         <div className="feature-text">
-          <h2 className="caps">One number. Every detail.</h2>
+          <h2>One number. Every detail.</h2>
           <p>Tell us the date, the district and how many guests. We match tents and chairs to your numbers, add labour, transport and our 3% fee, and show you a single grand total.</p>
           <ol className="steps">
             <li><span className="caps">01</span>Choose your services</li>
@@ -82,14 +84,14 @@ export default function Home() {
             <li><span className="caps">03</span>See your grand total</li>
             <li><span className="caps">04</span>Pay your way</li>
           </ol>
-          <Link to="/plan" className="link-caps">See my plan</Link>
+          <Link to="/plan" className="button fit sun">See my plan</Link>
         </div>
       </section>
 
       <section className="intro narrow">
         <h2 className="caps">For vendors</h2>
         <p className="lead">Tent hire, caterers, venues, MCs and photographers: bring your business to the families planning their next celebration.</p>
-        <Link to="/vendors" className="link-caps">List my business</Link>
+        <Link to="/vendors" className="button fit dark">List my business</Link>
       </section>
     </>
   );

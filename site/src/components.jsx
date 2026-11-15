@@ -33,15 +33,23 @@ export function Art({ category = "venues", seed = 0, className = "", label, phot
   );
 }
 
-export function Drum({ className = "" }) {
+export function Mark({ className = "" }) {
   return (
-    <svg className={className} viewBox="0 0 200 260" fill="none" stroke="currentColor" strokeWidth="1" aria-hidden="true">
-      <ellipse cx="100" cy="46" rx="74" ry="24" />
-      <path d="M26 46c4 70 16 130 34 176M174 46c-4 70-16 130-34 176" />
-      <path d="M60 222c10 10 70 10 80 0" />
-      <path d="M40 70l42 150M82 70l-12 150M118 70l12 150M160 70l-42 150M82 70l36 150M118 70L82 220" opacity="0.55" />
+    <svg className={`mark ${className}`} viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="32" fill="#d42b2b" />
+      <g stroke="#fff7e6" strokeWidth="3" strokeLinecap="round">
+        <path d="M32 7v7M19.5 10.5l3 6M44.5 10.5l-3 6" />
+      </g>
+      <path d="M17 27l5 23q10 6 20 0l5-23z" fill="#f2b31c" />
+      <path d="M19.5 31l4.5 19 4-19 4 21 4-21 4 19 4.500-19" fill="none" stroke="#24140f" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+      <ellipse cx="32" cy="27" rx="15" ry="5.500" fill="#fff7e6" />
     </svg>
   );
+}
+
+/** The logo: the drum mark beside the name. */
+export function Logo({ className = "" }) {
+  return <span className={`logo ${className}`}><Mark /><span className="wordmark">CELEBRATE</span></span>;
 }
 
 export function Header({ overHero }) {
@@ -72,14 +80,14 @@ export function Header({ overHero }) {
         <Link to="/#offers" className="hide-small">Offers</Link>
         <NavLink to="/vendors" className="hide-small">For vendors</NavLink>
       </nav>
-      <Link to="/" className={`wordmark ${overHero && atTop ? "hidden" : ""}`}>CELEBRATE</Link>
+      <Link to="/" className={`brand ${overHero && atTop ? "hidden" : ""}`} aria-label="Celebrate, home"><Logo /></Link>
       <nav className="header-side right" aria-label="Your account">
         <button className="icon-button" onClick={() => setSearching(!searching)} aria-label={searching ? "Close search" : "Search services"} aria-expanded={searching}>
           {searching ? <X size={16} strokeWidth={1.4} /> : <Search size={16} strokeWidth={1.4} />}
         </button>
         <NavLink to="/account" className="hide-small">Account</NavLink>
         <NavLink to="/bookings" className="hide-small">Bookings</NavLink>
-        <NavLink to="/plan">Plan ({items.length})</NavLink>
+        <NavLink to="/plan" className="plan-pill">My plan <span>{items.length}</span></NavLink>
       </nav>
       {searching && (
         <form className="search-row" onSubmit={submit} role="search">
@@ -95,7 +103,7 @@ export function Footer() {
   return (
     <footer className="footer">
       <div>
-        <p className="wordmark small">CELEBRATE</p>
+        <Logo className="small" />
         <p className="quiet">Tukusanyukidde. Every event service, one platform, one grand total.</p>
       </div>
       <nav aria-label="Footer">
@@ -123,7 +131,7 @@ export function ServiceCard({ service, index = 0 }) {
         <span className="piece-view">View</span>
       </div>
       <h3>{service.name}</h3>
-      <p>{money(service.price)} <span className="quiet">/ {service.unit}</span></p>
+      <p className="piece-price">{money(service.price)} <span className="quiet">/ {service.unit}</span></p>
       <p className="quiet">{service.vendor} · {service.district}</p>
     </Link>
   );

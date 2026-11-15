@@ -1,4 +1,5 @@
-import { NavLink, useParams, useSearchParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Search } from "lucide-react";
 import { api, useLoad } from "../../../src/api.js";
 import { ErrorNote, Loading, PageHead, ServiceCard } from "../components.jsx";
 
@@ -11,6 +12,7 @@ const FILTERS = [
 
 export default function Services() {
   const { category } = useParams();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
   const filter = params.get("filter") ?? "";
@@ -25,15 +27,28 @@ export default function Services() {
     setParams(next, { replace: true });
   };
 
+  const search = (event) => {
+    event.preventDefault();
+    const text = new FormData(event.currentTarget).get("q").trim();
+    navigate(text ? `/services?q=${encodeURIComponent(text)}` : "/services");
+  };
+
   const title = category
     ? meta.data?.categories.find((c) => c.id === category)?.title ?? "Services"
     : q ? `Results for “${q}”` : "All services";
 
   return (
     <div className="page">
-      <PageHead eyebrow="Services" title={title}>
-        <p className="quiet">{list.loading ? "Finding providers…" : `${count} ${count === 1 ? "provider" : "providers"} · prices include VAT`}</p>
-      </PageHead>
+      <div className="band">
+        <PageHead eyebrow="Services" title={title}>
+          <p>{list.loading ? "Finding providers…" : `${count} ${count === 1 ? "provider" : "providers"} · prices include VAT`}</p>
+        </PageHead>
+        <form className="band-search" role="search" onSubmit={search}>
+          <Search size={18} aria-hidden="true" />
+          <input key={q} name="q" type="search" defaultValue={q} placeholder="Search, e.g. tents in Mukono" aria-label="Search services" />
+          <button className="button fit">Search</button>
+        </form>
+      </div>
 
       <div className="toolbar">
         <nav className="toolbar-row" aria-label="Categories">
