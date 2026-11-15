@@ -2,6 +2,7 @@ import { NavLink, useNavigate, useParams, useSearchParams } from "react-router-d
 import { Search } from "lucide-react";
 import { api, useLoad } from "../../../src/api.js";
 import { ErrorNote, Loading, PageHead, ServiceCard } from "../components.jsx";
+import { useT } from "../i18n.jsx";
 
 const FILTERS = [
   { id: "", label: "All" },
@@ -13,6 +14,7 @@ const FILTERS = [
 export default function Services() {
   const { category } = useParams();
   const navigate = useNavigate();
+  const t = useT();
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
   const filter = params.get("filter") ?? "";
@@ -40,24 +42,24 @@ export default function Services() {
   return (
     <div className="page">
       <div className="band">
-        <PageHead eyebrow="Services" title={title}>
+        <PageHead eyebrow={t("Services")} title={t(title)}>
           <p>{list.loading ? "Finding providers…" : `${count} ${count === 1 ? "provider" : "providers"} · prices include VAT`}</p>
         </PageHead>
         <form className="band-search" role="search" onSubmit={search}>
           <Search size={18} aria-hidden="true" />
           <input key={q} name="q" type="search" defaultValue={q} placeholder="Search, e.g. tents in Mukono" aria-label="Search services" />
-          <button className="button fit">Search</button>
+          <button className="button fit">{t("Search")}</button>
         </form>
       </div>
 
       <div className="toolbar">
         <nav className="toolbar-row" aria-label="Categories">
-          <NavLink to="/services" end>All</NavLink>
-          {meta.data?.categories.map((c) => <NavLink key={c.id} to={`/services/${c.id}`}>{c.name}</NavLink>)}
+          <NavLink to="/services" end>{t("All")}</NavLink>
+          {meta.data?.categories.map((c) => <NavLink key={c.id} to={`/services/${c.id}`}>{t(c.name)}</NavLink>)}
         </nav>
         <div className="toolbar-row" role="group" aria-label="Filter">
           {FILTERS.map(({ id, label }) => (
-            <button key={id} className={filter === id ? "active" : ""} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>
+            <button key={id} className={filter === id ? "active" : ""} aria-pressed={filter === id} onClick={() => setFilter(id)}>{t(label)}</button>
           ))}
         </div>
       </div>

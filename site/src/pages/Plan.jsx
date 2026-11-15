@@ -4,6 +4,7 @@ import { api, useLoad } from "../../../src/api.js";
 import { formatDate, toISODate } from "../../../src/format.js";
 import { usePlan } from "../../../src/plan.jsx";
 import { ErrorNote, Loading, PageHead, Summary } from "../components.jsx";
+import { useT } from "../i18n.jsx";
 
 const SETUP = [
   { id: "vendor", title: "Done for me", hint: "Vendor sets up · labour added" },
@@ -12,6 +13,7 @@ const SETUP = [
 
 export default function Plan() {
   const plan = usePlan();
+  const t = useT();
   const { event, items } = plan;
   const meta = useLoad(api.meta, []);
   // Number fields are kept as text while typing; the plan updates once they are valid.
@@ -41,17 +43,17 @@ export default function Plan() {
   if (!items.length) {
     return (
       <div className="page centre-page">
-        <PageHead eyebrow="My plan" title="Your plan is empty">
+        <PageHead eyebrow="My plan" title={t("Your plan is empty")}>
           <p className="quiet">Add a venue, tents, catering or anything else, and we will add it all up into one grand total.</p>
         </PageHead>
-        <Link to="/services" className="button fit">Browse services</Link>
+        <Link to="/services" className="button fit">{t("Browse services")}</Link>
       </div>
     );
   }
 
   return (
     <div className="page">
-      <PageHead eyebrow="Steps 2 and 3 of 4 · Your event" title="Tell us the details">
+      <PageHead eyebrow="Steps 2 and 3 of 4 · Your event" title={t("Tell us the details")}>
         <p className="quiet">{event.type} · {event.guests.toLocaleString("en-US")} guests · {dateOk ? formatDate(event.date) : "date to choose"} · {event.district}</p>
       </PageHead>
 
@@ -63,40 +65,40 @@ export default function Plan() {
             <>
               <div className="fields">
                 <label className="field">
-                  <span className="caps">Event type</span>
+                  <span className="caps">{t("Event type")}</span>
                   <select value={event.type} onChange={(e) => plan.setEvent({ type: e.target.value })}>
-                    {meta.data.eventTypes.map((type) => <option key={type}>{type}</option>)}
+                    {meta.data.eventTypes.map((type) => <option key={type} value={type}>{t(type)}</option>)}
                   </select>
                 </label>
                 <label className="field">
-                  <span className="caps">Number of guests</span>
+                  <span className="caps">{t("Number of guests")}</span>
                   <input type="number" inputMode="numeric" min="1" max="5000" value={guests} onChange={(e) => changeGuests(e.target.value)} aria-invalid={!guestsOk} />
                   {!guestsOk && <small className="field-error">From 1 to 5,000 guests.</small>}
                 </label>
                 <label className="field">
-                  <span className="caps">Event date</span>
+                  <span className="caps">{t("Event date")}</span>
                   <input type="date" min={toISODate(new Date())} value={event.date} onChange={(e) => plan.setEvent({ date: e.target.value })} aria-invalid={!dateOk} />
                   {!dateOk && <small className="field-error">Choose a date that has not passed.</small>}
                 </label>
                 <label className="field">
-                  <span className="caps">District</span>
+                  <span className="caps">{t("District")}</span>
                   <select value={event.district} onChange={(e) => plan.setEvent({ district: e.target.value })}>
                     {meta.data.districts.map((district) => <option key={district}>{district}</option>)}
                   </select>
                 </label>
                 <label className="field">
-                  <span className="caps">Tents needed</span>
+                  <span className="caps">{t("Tents needed")}</span>
                   <input type="number" inputMode="numeric" min="0" max="100" value={tents} onChange={(e) => changeTents(e.target.value)} aria-invalid={!tentsOk} />
                   {!tentsOk && <small className="field-error">From 0 to 100 tents.</small>}
                 </label>
                 <label className="field">
-                  <span className="caps">Chairs</span>
+                  <span className="caps">{t("Chairs")}</span>
                   <input value={`${guestsOk ? Number(guests) : "–"} · auto-matched`} readOnly tabIndex={-1} className="matched" />
                 </label>
               </div>
 
               <fieldset className="choices">
-                <legend className="caps">Who handles setup?</legend>
+                <legend className="caps">{t("Who handles setup?")}</legend>
                 {SETUP.map((option) => (
                   <label key={option.id} className={`choice ${event.setup === option.id ? "on" : ""}`}>
                     <input type="radio" name="setup" checked={event.setup === option.id} onChange={() => plan.setEvent({ setup: option.id })} />
@@ -111,15 +113,15 @@ export default function Plan() {
 
         <aside className="summary" aria-label="My plan">
           <div className="block-head">
-            <h2 className="caps">One number. Every detail.</h2>
-            <Link to="/services" className="link-quiet">Add more</Link>
+            <h2 className="caps">{t("One number. Every detail.")}</h2>
+            <Link to="/services" className="link-quiet">{t("Add more")}</Link>
           </div>
           <ErrorNote>{quote.error}</ErrorNote>
           {quote.loading && !quote.data && <Loading label="Adding it all up" />}
           {quote.data && <Summary quote={quote.data} categories={meta.data?.categories} onRemove={plan.removeItem} />}
           {formOk && quote.data
-            ? <Link to="/pay" className="button">Pay now</Link>
-            : <button className="button" disabled>Pay now</button>}
+            ? <Link to="/pay" className="button">{t("Pay now")}</Link>
+            : <button className="button" disabled>{t("Pay now")}</button>}
         </aside>
       </div>
     </div>

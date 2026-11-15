@@ -8,6 +8,7 @@ import Plan from "./pages/Plan.jsx";
 import Pay from "./pages/Pay.jsx";
 import Receipt from "./pages/Receipt.jsx";
 import Bookings from "./pages/Bookings.jsx";
+import Budget from "./pages/Budget.jsx";
 import { Account, NotFound, Vendors } from "./pages/Simple.jsx";
 
 export default function App() {
@@ -20,12 +21,13 @@ export default function App() {
     <>
       <a href="#main" className="skip">Skip to content</a>
       <Header overHero={pathname === "/"} />
-      <main id="main">
+      <main id="main" key={pathname} className="fade">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/services" element={<Services />} />
           <Route path="/services/:category" element={<Services />} />
           <Route path="/service/:id" element={<Service />} />
+          <Route path="/budget" element={<Budget />} />
           <Route path="/plan" element={<Plan />} />
           <Route path="/pay" element={<Pay />} />
           <Route path="/receipt/:id" element={<Receipt />} />

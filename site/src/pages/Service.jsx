@@ -3,11 +3,13 @@ import { api, useLoad } from "../../../src/api.js";
 import { discountPercent, formatDate, money } from "../../../src/format.js";
 import { usePlan } from "../../../src/plan.jsx";
 import { Art, ErrorNote, Loading } from "../components.jsx";
+import { useT } from "../i18n.jsx";
 
 export default function Service() {
   const { id } = useParams();
   const navigate = useNavigate();
   const plan = usePlan();
+  const t = useT();
   const meta = useLoad(api.meta, []);
   const { data: service, error, loading } = useLoad(() => api.service(id), [id]);
   const added = plan.items.includes(id);
@@ -25,7 +27,7 @@ export default function Service() {
       </div>
       <div className="product-info">
         <Link to={`/services/${service.category}`} className="link-quiet">← {category?.title ?? "Services"}</Link>
-        <p className="caps">{category?.title}</p>
+        <p className="caps">{t(category?.title ?? "")}</p>
         <h1>{service.name}</h1>
         <p className="quiet">by {service.vendor}{service.verified ? " · Verified vendor" : ""} · Rated {service.rating} of 5 · {service.reviews} reviews</p>
 
@@ -36,13 +38,13 @@ export default function Service() {
         </p>
 
         <button className={`button ${added ? "outline" : ""}`} onClick={() => (added ? plan.removeItem(id) : plan.addItem(id))}>
-          {added ? "Remove from my plan" : "Add to my plan"}
+          {t(added ? "Remove from my plan" : "Add to my plan")}
         </button>
-        {added && <button className="button" onClick={() => navigate("/plan")}>View my plan</button>}
+        {added && <button className="button" onClick={() => navigate("/plan")}>{t("View my plan")}</button>}
         <p className="quiet centre">Free on {formatDate(plan.event.date)} · {service.district}</p>
 
         <section className="detail">
-          <h2 className="caps">What is included</h2>
+          <h2 className="caps">{t("What is included")}</h2>
           <ul>{service.included.map((line) => <li key={line}>{line}</li>)}</ul>
         </section>
 

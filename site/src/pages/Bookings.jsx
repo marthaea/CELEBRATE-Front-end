@@ -2,18 +2,20 @@ import { Link } from "react-router-dom";
 import { api, useLoad } from "../../../src/api.js";
 import { formatDate, money } from "../../../src/format.js";
 import { ErrorNote, Loading, PageHead } from "../components.jsx";
+import { useT } from "../i18n.jsx";
 
 export default function Bookings() {
+  const t = useT();
   const { data, error, loading } = useLoad(api.bookings, []);
   return (
     <div className="page centre-page wide">
-      <PageHead eyebrow="Bookings" title="Your events" />
+      <PageHead eyebrow={t("Bookings")} title={t("Your events")} />
       <ErrorNote>{error}</ErrorNote>
       {loading && <Loading />}
       {data && data.length === 0 && (
         <>
           <p className="quiet">No bookings yet. Once you pay for a plan, its receipt and vendor updates appear here.</p>
-          <Link to="/services" className="button fit">Browse services</Link>
+          <Link to="/services" className="button fit">{t("Browse services")}</Link>
         </>
       )}
       {data && data.length > 0 && (

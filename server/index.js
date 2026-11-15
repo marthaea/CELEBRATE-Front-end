@@ -1,3 +1,4 @@
+import express from "express";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -15,3 +16,4 @@ if (fs.existsSync(dist)) {
 
 const port = Number(process.env.PORT) || 3001;
 app.listen(port, () => console.log(`CELEBRATE API listening on http://localhost:${port}`));
+

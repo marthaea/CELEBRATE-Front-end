@@ -4,6 +4,8 @@ import { Building2, CakeSlice, Camera, Gamepad2, Mic, Search, Speaker, Tent, Ute
 import { discountPercent, money } from "../../src/format.js";
 import { usePlan } from "../../src/plan.jsx";
 import { PHOTOS } from "./photos.js";
+import { useLang, useT } from "./i18n.jsx";
+import { COMPARE_LIMIT, useCompare } from "./compare.jsx";
 
 const ICONS = {
   venues: Building2, tents: Tent, catering: Utensils, cakes: CakeSlice,
@@ -19,7 +21,7 @@ export function Art({ category = "venues", seed = 0, className = "", label, phot
   if (picture) {
     return (
       <div className={`art art-photo ${className}`}>
-        <img src={picture.src} alt={picture.alt} loading={eager ? "eager" : "lazy"} decoding="async" />
+        <img src={picture.src} alt={picture.alt} loading={eager ? "eager" : "lazy"} decoding="async" onLoad={(e) => e.currentTarget.classList.add("in")} ref={(img) => img?.complete && img.classList.add("in")} />
       </div>
     );
   }
@@ -54,6 +56,7 @@ export function Logo({ className = "" }) {
 
 export function Header({ overHero }) {
   const { items } = usePlan();
+  const { lang, setLang, t } = useLang();
   const navigate = useNavigate();
   const [atTop, setAtTop] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -76,23 +79,27 @@ export function Header({ overHero }) {
   return (
     <header className={`header ${light ? "light" : ""}`}>
       <nav className="header-side" aria-label="Main">
-        <NavLink to="/services">Services</NavLink>
-        <Link to="/#offers" className="hide-small">Offers</Link>
-        <NavLink to="/vendors" className="hide-small">For vendors</NavLink>
+        <NavLink to="/services">{t("Services")}</NavLink>
+        <NavLink to="/budget">{t("Budget")}</NavLink>
+        <Link to="/#offers" className="hide-small">{t("Offers")}</Link>
+        <NavLink to="/vendors" className="hide-small">{t("For vendors")}</NavLink>
       </nav>
       <Link to="/" className={`brand ${overHero && atTop ? "hidden" : ""}`} aria-label="Celebrate, home"><Logo /></Link>
       <nav className="header-side right" aria-label="Your account">
         <button className="icon-button" onClick={() => setSearching(!searching)} aria-label={searching ? "Close search" : "Search services"} aria-expanded={searching}>
           {searching ? <X size={16} strokeWidth={1.4} /> : <Search size={16} strokeWidth={1.4} />}
         </button>
-        <NavLink to="/account" className="hide-small">Account</NavLink>
-        <NavLink to="/bookings" className="hide-small">Bookings</NavLink>
-        <NavLink to="/plan" className="plan-pill">My plan <span>{items.length}</span></NavLink>
+        <button className="lang" onClick={() => setLang(lang === "en" ? "lg" : "en")} aria-label={lang === "en" ? "Kyusa olulimi: Luganda" : "Change language: English"}>
+          <span className={lang === "en" ? "on" : ""}>EN</span><span className={lang === "lg" ? "on" : ""}>LG</span>
+        </button>
+        <NavLink to="/account" className="hide-small">{t("Account")}</NavLink>
+        <NavLink to="/bookings" className="hide-small">{t("Bookings")}</NavLink>
+        <NavLink to="/plan" className="plan-pill"><span className="hide-tiny">{t("My plan")}</span> <span className="count">{items.length}</span></NavLink>
       </nav>
       {searching && (
         <form className="search-row" onSubmit={submit} role="search">
           <input autoFocus type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Try: tents in Mukono" aria-label="Search services" />
-          <button className="link-caps">Search</button>
+          <button className="link-caps">{t("Search")}</button>
         </form>
       )}
     </header>
@@ -100,6 +107,7 @@ export function Header({ overHero }) {
 }
 
 export function Footer() {
+  const t = useT();
   return (
     <footer className="footer">
       <div>
@@ -107,11 +115,12 @@ export function Footer() {
         <p className="quiet">Tukusanyukidde. Every event service, one platform, one grand total.</p>
       </div>
       <nav aria-label="Footer">
-        <Link to="/services">Services</Link>
-        <Link to="/plan">My plan</Link>
-        <Link to="/bookings">Bookings</Link>
-        <Link to="/account">Account</Link>
-        <Link to="/vendors">List my business</Link>
+        <Link to="/services">{t("Services")}</Link>
+        <Link to="/budget">{t("Budget planner")}</Link>
+        <Link to="/plan">{t("My plan")}</Link>
+        <Link to="/bookings">{t("Bookings")}</Link>
+        <Link to="/account">{t("Account")}</Link>
+        <Link to="/vendors">{t("List my business")}</Link>
       </nav>
       <p className="quiet">Kampala · Mukono · Wakiso · Entebbe · Jinja<br />Photographs from Pexels, for illustration.</p>
     </footer>
@@ -139,6 +148,7 @@ export function ServiceCard({ service, index = 0 }) {
 
 /** The loader: the drum beats and its three sparks pop in turn. */
 export function Loading({ label = "Loading" }) {
+  const t = useT();
   return (
     <div className="loader" role="status">
       <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -154,7 +164,7 @@ export function Loading({ label = "Loading" }) {
           <ellipse cx="32" cy="27" rx="15" ry="5.500" fill="#fff7e6" />
         </g>
       </svg>
-      <p>{label}…</p>
+      <p>{t(label)}…</p>
     </div>
   );
 }
@@ -170,7 +180,8 @@ export const PageHead = ({ eyebrow, title, children }) => (
 
 /** The itemised plan with every cost and the grand total. */
 export function Summary({ quote, categories, onRemove }) {
-  const titleFor = (id) => categories?.find((c) => c.id === id)?.title ?? "";
+  const t = useT();
+  const titleFor = (id) => t(categories?.find((c) => c.id === id)?.title ?? "");
   return (
     <>
       <ul className="lines">
@@ -179,7 +190,7 @@ export function Summary({ quote, categories, onRemove }) {
             <div>
               <p>{titleFor(line.category)}</p>
               <p className="quiet">{line.detail} · {line.vendor}</p>
-              {onRemove && <button className="link-quiet" onClick={() => onRemove(line.id)} aria-label={`Remove ${line.name}`}>Remove</button>}
+              {onRemove && <button className="link-quiet" onClick={() => onRemove(line.id)} aria-label={`Remove ${line.name}`}>{t("Remove")}</button>}
             </div>
             <p className="num">{money(line.amount)}</p>
           </li>
@@ -192,7 +203,7 @@ export function Summary({ quote, categories, onRemove }) {
         <div><dt>Platform fee ({Math.round(quote.feeRate * 100)}%)</dt><dd>{money(quote.platformFee)}</dd></div>
       </dl>
       <div className="grand">
-        <p className="caps">Grand total</p>
+        <p className="caps">{t("Grand total")}</p>
         <p className="grand-total">{money(quote.total)}</p>
         <p className="quiet">No hidden costs. This is all you pay.</p>
       </div>

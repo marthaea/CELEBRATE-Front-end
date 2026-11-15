@@ -1,6 +1,8 @@
 import express from "express";
 import { CATEGORIES, DISTRICTS, EVENT_TYPES, OFFER_IDS, PAYMENT_METHODS, SERVICES } from "./data.js";
-import { buildQuote, validateEvent } from "./pricing.js";
+import { buildQuote, PLATFORM_FEE_RATE, validateEvent } from "./pricing.js";
+import { bookedDays, nextFreeDate, unavailable } from "./availability.js";
+import { read, write } from "./store.js";
 
 const app = express();
 app.use(express.json({ limit: "50kb" }));
@@ -8,9 +10,12 @@ app.use(express.json({ limit: "50kb" }));
 const byId = new Map(SERVICES.map((service) => [service.id, service]));
 const categoryById = new Map(CATEGORIES.map((category) => [category.id, category]));
 
-// Bookings live in memory: they are lost when the server restarts.
-const bookings = [];
-let nextReceipt = 123;
+// Bookings and pledges are kept through store.js: in memory unless the host plugs in something lasting.
+const loadBookings = () => read("bookings", []);
+const FIRST_RECEIPT = 123;
+
+// Express 4 does not catch errors from async handlers by itself.
+const safe = (handler) => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 
 const money = (n) => `UGX ${n.toLocaleString("en-US")}`;
 
@@ -64,7 +69,44 @@ app.post("/api/quote", (req, res) => {
   res.json(buildQuote(services, event));
 });
 
-app.post("/api/bookings", (req, res) => {
+// Every way of filling each category for this event, with what it would cost all-in before the
+// platform fee. The budget planner and the compare page are built on this.
+app.post("/api/options", (req, res) => {
+  const { event } = req.body ?? {};
+  const errors = validateEvent(event);
+  if (errors.length) return res.status(400).json({ error: errors.join(" ") });
+  const categories = CATEGORIES.map((category) => ({
+    ...category,
+    options: SERVICES.filter((service) => service.category === category.id)
+      .map((service) => {
+        const quote = buildQuote([service], event);
+        const { id, name, vendor, district, rating, reviews, verified } = service;
+        return { id, name, vendor, district, rating, reviews, verified, cost: quote.itemCost + quote.labour + quote.transport };
+      })
+      .sort((a, b) => a.cost - b.cost),
+  }));
+  res.json({ categories, feeRate: PLATFORM_FEE_RATE });
+});
+
+app.get("/api/services/:id/availability", safe(async (req, res) => {
+  if (!byId.has(req.params.id)) return res.status(404).json({ error: "We could not find that service." });
+  const month = String(req.query.month ?? "");
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return res.status(400).json({ error: "Choose a month." });
+  res.json({ month, booked: bookedDays(req.params.id, month, await loadBookings()), sample: true });
+}));
+
+app.post("/api/availability", safe(async (req, res) => {
+  const { date, items } = req.body ?? {};
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "Choose an event date." });
+  const { services, error } = resolveItems(items);
+  if (error) return res.status(400).json({ error });
+  const ids = services.map((service) => service.id);
+  const bookings = await loadBookings();
+  const clash = unavailable(ids, date, bookings);
+  res.json({ date, unavailable: clash, nextFree: clash.length ? nextFreeDate(ids, date, bookings) : date });
+}));
+
+app.post("/api/bookings", safe(async (req, res) => {
   const { event, items, payment, customer } = req.body ?? {};
   const errors = validateEvent(event);
   if (errors.length) return res.status(400).json({ error: errors.join(" ") });
@@ -78,10 +120,17 @@ app.post("/api/bookings", (req, res) => {
     return res.status(400).json({ error: "Enter a valid mobile money number, like 0770 000 000." });
   }
 
+  const bookings = await loadBookings();
+  const clash = unavailable(services.map((service) => service.id), event.date, bookings);
+  if (clash.length) {
+    const names = clash.map((id) => byId.get(id).vendor).join(", ");
+    return res.status(409).json({ error: `Not free on that date: ${names}. Choose another date or swap the service.` });
+  }
+
   // No money moves here. Connect a payment provider (MTN MoMo, Airtel Money, a card gateway) at this point.
   const quote = buildQuote(services, event);
   const booking = {
-    id: `CLB-${String(nextReceipt++).padStart(6, "0")}`,
+    id: `CLB-${String(FIRST_RECEIPT + bookings.length).padStart(6, "0")}`,
     createdAt: new Date().toISOString(),
     customer: String(customer ?? "").slice(0, 60),
     event,
@@ -91,23 +140,24 @@ app.post("/api/bookings", (req, res) => {
     vendors: services.map((service) => ({
       category: categoryById.get(service.category).name,
       vendor: service.vendor,
+      serviceId: service.id,
       status: service.instantConfirm ? "Confirmed" : "Waiting",
     })),
   };
-  bookings.unshift(booking);
+  await write("bookings", [booking, ...bookings]);
   res.status(201).json(booking);
-});
+}));
 
-app.get("/api/bookings", (_req, res) => res.json(bookings));
+app.get("/api/bookings", safe(async (_req, res) => res.json(await loadBookings())));
 
-app.get("/api/bookings/:id", (req, res) => {
-  const booking = bookings.find((b) => b.id === req.params.id);
+app.get("/api/bookings/:id", safe(async (req, res) => {
+  const booking = (await loadBookings()).find((b) => b.id === req.params.id);
   if (!booking) return res.status(404).json({ error: "We could not find that booking." });
   res.json(booking);
-});
+}));
 
-app.get("/api/bookings/:id/receipt", (req, res) => {
-  const booking = bookings.find((b) => b.id === req.params.id);
+app.get("/api/bookings/:id/receipt", safe(async (req, res) => {
+  const booking = (await loadBookings()).find((b) => b.id === req.params.id);
   if (!booking) return res.status(404).json({ error: "We could not find that booking." });
   const { quote, event } = booking;
   const row = (label, value) => `${label.padEnd(44, " ")}${value.padStart(16, " ")}`;
@@ -136,8 +186,40 @@ app.get("/api/bookings/:id/receipt", (req, res) => {
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${booking.id}.txt"`);
   res.send(text);
-});
+}));
+
+// Pledges towards a shared plan. A pledge is a promise recorded against the plan's key; no money
+// is collected here. Collecting contributions needs the payment provider.
+const pledgeKey = (key) => (/^[a-z0-9]{6,16}$/.test(key) ? `pledges:${key}` : null);
+
+app.get("/api/pledges/:key", safe(async (req, res) => {
+  const key = pledgeKey(req.params.key);
+  if (!key) return res.status(400).json({ error: "That link is not valid." });
+  res.json(await read(key, []));
+}));
+
+app.post("/api/pledges/:key", safe(async (req, res) => {
+  const key = pledgeKey(req.params.key);
+  if (!key) return res.status(400).json({ error: "That link is not valid." });
+  const name = String(req.body?.name ?? "").trim().slice(0, 40);
+  const amount = Number(req.body?.amount);
+  const towards = String(req.body?.towards ?? "").trim().slice(0, 60);
+  if (!name) return res.status(400).json({ error: "Tell us your name." });
+  if (!Number.isInteger(amount) || amount < 1000 || amount > 100000000) {
+    return res.status(400).json({ error: "Enter an amount from UGX 1,000 to UGX 100,000,000." });
+  }
+  const pledges = await read(key, []);
+  if (pledges.length >= 200) return res.status(400).json({ error: "This plan has reached its limit of pledges." });
+  const next = [...pledges, { name, amount, towards, at: new Date().toISOString() }];
+  await write(key, next);
+  res.status(201).json(next);
+}));
 
 app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
+
+app.use((error, _req, res, _next) => {
+  console.error(error);
+  res.status(500).json({ error: "Something went wrong on our side. Please try again." });
+});
 
 export default app;

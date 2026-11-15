@@ -4,9 +4,11 @@ import { api, useLoad } from "../../../src/api.js";
 import { money } from "../../../src/format.js";
 import { usePlan } from "../../../src/plan.jsx";
 import { ErrorNote, Loading, PageHead, Summary } from "../components.jsx";
+import { useT } from "../i18n.jsx";
 
 export default function Pay() {
   const plan = usePlan();
+  const t = useT();
   const navigate = useNavigate();
   const { event, items } = plan;
   const meta = useLoad(api.meta, []);
@@ -37,7 +39,7 @@ export default function Pay() {
 
   return (
     <div className="page">
-      <PageHead eyebrow="Step 4 of 4 · Payment" title="Pay your way">
+      <PageHead eyebrow="Step 4 of 4 · Payment" title={t("Pay your way")}>
         <p className="quiet">{total ? `Amount due: ${money(total)}` : "Working out the amount due…"}</p>
       </PageHead>
 
@@ -48,7 +50,7 @@ export default function Pay() {
           {meta.data && (
             <>
               <fieldset className="choices">
-                <legend className="caps">Choose how to pay</legend>
+                <legend className="caps">{t("Choose how to pay")}</legend>
                 {meta.data.paymentMethods.map((option) => (
                   <label key={option.id} className={`choice ${method === option.id ? "on" : ""}`}>
                     <input type="radio" name="method" checked={method === option.id} onChange={() => { setMethod(option.id); setError(""); }} />
@@ -83,7 +85,7 @@ export default function Pay() {
 
         <aside className="summary" aria-label="Order summary">
           <div className="block-head">
-            <h2 className="caps">Your plan</h2>
+            <h2 className="caps">{t("Your plan")}</h2>
             <Link to="/plan" className="link-quiet">Edit</Link>
           </div>
           {quote.loading && <Loading label="Adding it all up" />}
