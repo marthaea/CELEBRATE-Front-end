@@ -137,7 +137,27 @@ export function ServiceCard({ service, index = 0 }) {
   );
 }
 
-export const Loading = ({ label = "Loading" }) => <p className="status" role="status">{label}…</p>;
+/** The loader: the drum beats and its three sparks pop in turn. */
+export function Loading({ label = "Loading" }) {
+  return (
+    <div className="loader" role="status">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="32" fill="#d42b2b" />
+        <g stroke="#fff7e6" strokeWidth="3" strokeLinecap="round">
+          <path className="spark" d="M19.5 10.5l3 6" />
+          <path className="spark" d="M32 7v7" />
+          <path className="spark" d="M44.5 10.5l-3 6" />
+        </g>
+        <g className="beat">
+          <path d="M17 27l5 23q10 6 20 0l5-23z" fill="#f2b31c" />
+          <path d="M19.5 31l4.5 19 4-19 4 21 4-21 4 19 4.500-19" fill="none" stroke="#24140f" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+          <ellipse cx="32" cy="27" rx="15" ry="5.500" fill="#fff7e6" />
+        </g>
+      </svg>
+      <p>{label}…</p>
+    </div>
+  );
+}
 export const ErrorNote = ({ children }) => (children ? <p className="error" role="alert">{children}</p> : null);
 
 export const PageHead = ({ eyebrow, title, children }) => (
