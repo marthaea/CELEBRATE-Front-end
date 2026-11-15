@@ -4,6 +4,7 @@ import { api, useLoad } from "../../../src/api.js";
 import { formatDate, toISODate } from "../../../src/format.js";
 import { usePlan } from "../../../src/plan.jsx";
 import { ErrorNote, Loading, PageHead, Summary } from "../components.jsx";
+import { encodePlan, more } from "../extra.js";
 import { useT } from "../i18n.jsx";
 
 const SETUP = [
@@ -24,10 +25,18 @@ export default function Plan() {
     [items.join(","), JSON.stringify(event)]
   );
 
+  // Which chosen services are already taken on the event date, and the nearest date when all are free.
+  const clash = useLoad(
+    () => (items.length && event.date ? more.availability(event.date, items) : Promise.resolve(null)),
+    [items.join(","), event.date]
+  );
+  const taken = clash.data?.unavailable ?? [];
+  const takenNames = quote.data?.lines.filter((line) => taken.includes(line.id)).map((line) => line.vendor) ?? [];
+
   const guestsOk = Number.isInteger(Number(guests)) && Number(guests) >= 1 && Number(guests) <= 5000;
   const tentsOk = tents !== "" && Number.isInteger(Number(tents)) && Number(tents) >= 0 && Number(tents) <= 100;
   const dateOk = Boolean(event.date) && event.date >= toISODate(new Date());
-  const formOk = guestsOk && tentsOk && dateOk;
+  const formOk = guestsOk && tentsOk && dateOk && taken.length === 0;
 
   const changeGuests = (value) => {
     setGuests(value);
@@ -97,6 +106,14 @@ export default function Plan() {
                 </label>
               </div>
 
+              {taken.length > 0 && (
+                <div className="error" role="alert">
+                  <p><strong>Not free on {formatDate(event.date)}:</strong> {takenNames.join(", ") || "one of your services"}.</p>
+                  <p>Pick another date, swap the service{clash.data.nextFree ? ", or move to the nearest date when everything is free." : "."}</p>
+                  {clash.data.nextFree && <button type="button" className="chip" onClick={() => plan.setEvent({ date: clash.data.nextFree })}>Move to {formatDate(clash.data.nextFree)}</button>}
+                </div>
+              )}
+
               <fieldset className="choices">
                 <legend className="caps">{t("Who handles setup?")}</legend>
                 {SETUP.map((option) => (
@@ -122,6 +139,7 @@ export default function Plan() {
           {formOk && quote.data
             ? <Link to="/pay" className="button">{t("Pay now")}</Link>
             : <button className="button" disabled>{t("Pay now")}</button>}
+          {quote.data && <Link to={`/share/${encodePlan({ event, items, host: plan.name })}`} className="button outline">Share and collect contributions</Link>}
         </aside>
       </div>
     </div>

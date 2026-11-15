@@ -9,6 +9,8 @@ import Pay from "./pages/Pay.jsx";
 import Receipt from "./pages/Receipt.jsx";
 import Bookings from "./pages/Bookings.jsx";
 import Budget from "./pages/Budget.jsx";
+import Share from "./pages/Share.jsx";
+import Compare from "./pages/Compare.jsx";
 import { Account, NotFound, Vendors } from "./pages/Simple.jsx";
 
 export default function App() {
@@ -30,6 +32,8 @@ export default function App() {
           <Route path="/budget" element={<Budget />} />
           <Route path="/plan" element={<Plan />} />
           <Route path="/pay" element={<Pay />} />
+          <Route path="/share/:code" element={<Share />} />
+          <Route path="/compare" element={<Compare />} />
           <Route path="/receipt/:id" element={<Receipt />} />
           <Route path="/bookings" element={<Bookings />} />
           <Route path="/account" element={<Account />} />

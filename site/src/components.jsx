@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Scale } from "lucide-react";
+import { toISODate } from "../../src/format.js";
+import { useLoad } from "../../src/api.js";
+import { more } from "./extra.js";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Building2, CakeSlice, Camera, Gamepad2, Mic, Search, Speaker, Tent, Utensils, X } from "lucide-react";
 import { discountPercent, money } from "../../src/format.js";
@@ -127,22 +131,91 @@ export function Footer() {
   );
 }
 
-/** One piece in a grid: image, name, price, vendor. */
+/** One piece in a grid: image, name, price, vendor, and a tick box to compare it with others. */
 export function ServiceCard({ service, index = 0 }) {
   const { items } = usePlan();
+  const compare = useCompare();
   const off = discountPercent(service);
+  const ticked = compare.ids.includes(service.id);
+  const full = !ticked && compare.ids.length >= COMPARE_LIMIT;
   return (
-    <Link to={`/service/${service.id}`} className="piece">
-      <div className="piece-art">
-        <Art category={service.category} photo={service.id} seed={index + service.name.length} label={service.photoCaption} />
-        {off > 0 && <span className="tag">{off}% off</span>}
-        {items.includes(service.id) && <span className="tag in-plan">In my plan</span>}
-        <span className="piece-view">View</span>
+    <div className="piece-wrap">
+      <Link to={`/service/${service.id}`} className="piece">
+        <div className="piece-art">
+          <Art category={service.category} photo={service.id} seed={index + service.name.length} label={service.photoCaption} />
+          {off > 0 && <span className="tag">{off}% off</span>}
+          {items.includes(service.id) && <span className="tag in-plan">In my plan</span>}
+          <span className="piece-view">View</span>
+        </div>
+        <h3>{service.name}</h3>
+        <p className="piece-price">{money(service.price)} <span className="quiet">/ {service.unit}</span></p>
+        <p className="quiet">{service.vendor} · {service.district} · ★ {service.rating}</p>
+      </Link>
+      <label className={`compare-tick ${ticked ? "on" : ""}`}>
+        <input type="checkbox" checked={ticked} disabled={full} onChange={() => compare.toggle(service.id)} />
+        {full ? `Compare up to ${COMPARE_LIMIT}` : "Compare"}
+      </label>
+    </div>
+  );
+}
+
+/** A bar along the bottom once something is ticked to compare. */
+export function CompareBar() {
+  const { ids, clear } = useCompare();
+  const t = useT();
+  if (!ids.length) return null;
+  return (
+    <div className="compare-bar" role="region" aria-label="Compare">
+      <p><Scale size={18} aria-hidden="true" /> {ids.length} of {COMPARE_LIMIT} chosen</p>
+      <button className="link-quiet" onClick={clear}>Clear</button>
+      {ids.length > 1
+        ? <Link to={`/compare?ids=${ids.join(",")}`} className="button fit sun">{t("Compare")}</Link>
+        : <span className="quiet">Tick one more to compare</span>}
+    </div>
+  );
+}
+
+const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+
+/** A month of a vendor's availability. Free days can be picked; taken and past days cannot. */
+export function Calendar({ serviceId, value, onPick }) {
+  const [month, setMonth] = useState(value.slice(0, 7));
+  const { data, error } = useLoad(() => more.month(serviceId, month), [serviceId, month]);
+  const today = toISODate(new Date());
+  const [year, m] = month.split("-").map(Number);
+  const first = new Date(year, m - 1, 1);
+  const blanks = (first.getDay() + 6) % 7; // weeks start on Monday
+  const count = new Date(year, m, 0).getDate();
+  const step = (by) => setMonth(toISODate(new Date(year, m - 1 + by, 1)).slice(0, 7));
+  const booked = new Set(data?.booked);
+
+  return (
+    <div className="calendar">
+      <div className="calendar-head">
+        <button type="button" className="icon-button" onClick={() => step(-1)} disabled={month <= today.slice(0, 7)} aria-label="Previous month"><ChevronLeft size={18} /></button>
+        <p aria-live="polite">{first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</p>
+        <button type="button" className="icon-button" onClick={() => step(1)} aria-label="Next month"><ChevronRight size={18} /></button>
       </div>
-      <h3>{service.name}</h3>
-      <p className="piece-price">{money(service.price)} <span className="quiet">/ {service.unit}</span></p>
-      <p className="quiet">{service.vendor} · {service.district}</p>
-    </Link>
+      <div className="calendar-grid">
+        {WEEKDAYS.map((day) => <span key={day} className="calendar-day-name">{day}</span>)}
+        {Array.from({ length: blanks }, (_, i) => <span key={`b${i}`} />)}
+        {Array.from({ length: count }, (_, i) => {
+          const iso = `${month}-${String(i + 1).padStart(2, "0")}`;
+          const taken = booked.has(iso);
+          const past = iso < today;
+          return (
+            <button type="button" key={iso} disabled={taken || past || !data} onClick={() => onPick(iso)}
+              className={`${taken ? "taken" : ""} ${iso === value ? "picked" : ""}`} aria-pressed={iso === value}
+              aria-label={`${i + 1} ${first.toLocaleDateString("en-GB", { month: "long" })}${taken ? ", booked" : past ? ", past" : ", free"}`}>
+              {i + 1}
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="field-error">{error}</p>}
+      <p className="calendar-key"><span className="key free" /> Free <span className="key taken" /> Booked <span className="key picked" /> Your date</p>
+      <p className="quiet">Sample calendar: vendors' real diaries are not connected yet.</p>
+    </div>
   );
 }
 

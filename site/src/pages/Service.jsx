@@ -2,7 +2,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, useLoad } from "../../../src/api.js";
 import { discountPercent, formatDate, money } from "../../../src/format.js";
 import { usePlan } from "../../../src/plan.jsx";
-import { Art, ErrorNote, Loading } from "../components.jsx";
+import { Art, Calendar, ErrorNote, Loading } from "../components.jsx";
+import { more } from "../extra.js";
 import { useT } from "../i18n.jsx";
 
 export default function Service() {
@@ -13,6 +14,8 @@ export default function Service() {
   const meta = useLoad(api.meta, []);
   const { data: service, error, loading } = useLoad(() => api.service(id), [id]);
   const added = plan.items.includes(id);
+  const clash = useLoad(() => more.availability(plan.event.date, [id]), [id, plan.event.date]);
+  const free = clash.data ? clash.data.unavailable.length === 0 : null;
   const category = meta.data?.categories.find((c) => c.id === service?.category);
 
   if (error) return <div className="page"><ErrorNote>{error}</ErrorNote><Link to="/services" className="link-caps">All services</Link></div>;
@@ -41,7 +44,14 @@ export default function Service() {
           {t(added ? "Remove from my plan" : "Add to my plan")}
         </button>
         {added && <button className="button" onClick={() => navigate("/plan")}>{t("View my plan")}</button>}
-        <p className="quiet centre">Free on {formatDate(plan.event.date)} · {service.district}</p>
+        <p className={`centre availability ${free === false ? "no" : ""}`} role="status">
+          {free === null ? "Checking the date…" : free ? `Free on ${formatDate(plan.event.date)} · ${service.district}` : `Booked on ${formatDate(plan.event.date)}. Pick another date below.`}
+        </p>
+
+        <section className="detail">
+          <h2 className="caps">Availability</h2>
+          <Calendar serviceId={id} value={plan.event.date} onPick={(date) => plan.setEvent({ date })} />
+        </section>
 
         <section className="detail">
           <h2 className="caps">{t("What is included")}</h2>

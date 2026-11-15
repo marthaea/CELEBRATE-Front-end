@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { api, useLoad } from "../../../src/api.js";
-import { ErrorNote, Loading, PageHead, ServiceCard } from "../components.jsx";
+import { CompareBar, ErrorNote, Loading, PageHead, ServiceCard } from "../components.jsx";
 import { useT } from "../i18n.jsx";
 
 const FILTERS = [
@@ -70,6 +70,7 @@ export default function Services() {
       <div className="grid four">
         {list.data?.map((service, index) => <ServiceCard key={service.id} service={service} index={index} />)}
       </div>
+      <CompareBar />
     </div>
   );
 }
