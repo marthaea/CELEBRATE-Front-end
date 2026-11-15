@@ -1,0 +1,62 @@
+# CELEBRATE · Tukusanyukidde
+
+Every event service. One platform. One grand total.
+
+A phone-first React app with a Node (Express) API, built from the eight-screen wireframe:
+Welcome → Home → Browse → Service → Details → Total → Pay → Receipt.
+
+## Run it
+
+```sh
+npm install
+npm run dev
+```
+
+Open http://localhost:5174. The API runs on http://localhost:3001 and Vite forwards `/api` to it.
+
+For a production-style run, one Node server serves both the API and the built app:
+
+```sh
+npm run build
+npm start
+```
+
+Then open http://localhost:3001.
+
+```sh
+npm test
+```
+
+checks the pricing rules, including that the wireframe's sample plan adds up to UGX 16,995,000.
+
+## Layout
+
+| Path | What it holds |
+| --- | --- |
+| `server/index.js` | API routes; serves `dist/` when it exists |
+| `server/data.js` | Sample catalogue: categories, services, districts, payment methods |
+| `server/pricing.js` | Quantities, labour, transport, 3% platform fee, grand total |
+| `src/screens/` | One file per screen |
+| `src/components/ui.jsx` | Shared pieces: pattern strip, logo, bottom navigation, plan bar |
+| `src/plan.jsx` | The customer's plan and event details, kept in the browser |
+| `src/styles.css` | Colours and all styling |
+
+## API
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/meta` | Event types, districts, categories, payment methods |
+| `GET /api/services?category=&q=&filter=` | Browse and search; `filter` is `under500k`, `top` or `offers` |
+| `GET /api/services/:id` | One service |
+| `GET /api/offers` | Offers this week |
+| `POST /api/quote` | `{ event, items }` → line items and grand total |
+| `POST /api/bookings` | `{ event, items, payment, customer }` → booking with receipt number |
+| `GET /api/bookings`, `GET /api/bookings/:id` | Bookings |
+| `GET /api/bookings/:id/receipt` | Downloadable e-receipt (text) |
+
+## Not real yet
+
+- **Payments.** No money moves. `POST /api/bookings` checks the details and records the booking; a payment provider still has to be connected there.
+- **Catalogue and photos.** Vendors, prices, ratings and reviews in `server/data.js` are sample data, and photos are patterned stand-ins.
+- **Storage.** Bookings are held in memory and are lost when the server restarts.
+- **Accounts.** "Log in" only remembers a name on the device. Vendor sign-up is a holding page.
