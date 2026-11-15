@@ -74,3 +74,10 @@ Both do the same things: browse and search services, build a plan, enter event d
 - **Catalogue and photos.** Vendors, prices, ratings and reviews in `server/data.js` are sample data, and photos are patterned stand-ins.
 - **Storage.** Bookings are held in memory and are lost when the server restarts.
 - **Accounts.** "Log in" only remembers a name on the device. Vendor sign-up is a holding page.
+
+## Hosting on Netlify
+
+`netlify.toml` builds the website (`site/`) and runs the API as a Netlify Function
+(`netlify/functions/api.js`), so connecting the repository to Netlify is enough; no settings
+need to be entered by hand. Bookings are kept in the function's memory, so they can vanish
+between requests on Netlify until a database is added.
