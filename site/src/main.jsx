@@ -24,3 +24,9 @@ createRoot(document.getElementById("root")).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// Lets the site be installed on a phone and opened without a connection. Only in the built site:
+// while developing, saved copies would hide changes.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}

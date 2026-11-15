@@ -1,7 +1,8 @@
-import { useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, useLoad } from "../../../src/api.js";
 import { usePlan } from "../../../src/plan.jsx";
+import { more } from "../extra.js";
 import { Art, Mark, ErrorNote, Loading, ServiceCard } from "../components.jsx";
 import { useT } from "../i18n.jsx";
 
@@ -9,6 +10,24 @@ export default function Home() {
   const plan = usePlan();
   const t = useT();
   const { hash } = useLocation();
+  const navigate = useNavigate();
+  const [filling, setFilling] = useState(false);
+
+  // Fills in the sample kwanjula from the original design, on the nearest date when every vendor is free.
+  const sample = async () => {
+    setFilling(true);
+    const items = ["lakeside-hall-gardens", "draped-tent-100", "buffet", "pa-dj", "photo-full-day"];
+    let date = plan.event.date;
+    try {
+      date = (await more.availability(date, items)).nextFree ?? date;
+    } catch {
+      // Keep the date; the plan page will say if a vendor is taken.
+    }
+    plan.clearItems();
+    items.forEach(plan.addItem);
+    plan.setEvent({ type: "Kwanjula", guests: 250, tents: 6, district: "Mukono", setup: "vendor", date });
+    navigate("/plan");
+  };
   const meta = useLoad(api.meta, []);
   const offers = useLoad(api.offers, []);
 
@@ -35,7 +54,10 @@ export default function Home() {
       <section className="intro" id="intro">
         <p className="caps">{t("Tukusanyukidde · Welcome")}{plan.name ? `, ${plan.name}` : ""}</p>
         <p className="lead">{t("Every event service. One platform. One grand total. Choose your venue, tents, food, sound and more from trusted vendors across Uganda, and see the full cost before you pay.")}</p>
-        <Link to="/services" className="link-caps">{t("Plan my event")}</Link>
+        <div className="hero-actions">
+          <Link to="/services" className="link-caps">{t("Plan my event")}</Link>
+          <button className="link-caps" onClick={sample} disabled={filling}>{t("Try a sample kwanjula")}</button>
+        </div>
       </section>
 
       <section className="occasions">

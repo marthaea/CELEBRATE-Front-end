@@ -4,6 +4,7 @@ import { api, useLoad } from "../../../src/api.js";
 import { money } from "../../../src/format.js";
 import { usePlan } from "../../../src/plan.jsx";
 import { ErrorNote, Loading, PageHead, Summary } from "../components.jsx";
+import { localBookings } from "../extra.js";
 import { useT } from "../i18n.jsx";
 
 export default function Pay() {
@@ -29,8 +30,9 @@ export default function Pay() {
     setPaying(true);
     try {
       const booking = await api.book({ event, items, payment: { method, phone }, customer: plan.name });
+      localBookings.save(booking);
       plan.clearItems();
-      navigate(`/receipt/${booking.id}`, { replace: true });
+      navigate(`/receipt/${booking.id}`, { replace: true, state: { fresh: true } });
     } catch (err) {
       setError(err.message);
       setPaying(false);

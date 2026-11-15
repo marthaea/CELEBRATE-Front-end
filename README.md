@@ -89,3 +89,20 @@ are free to use without payment or credit. They illustrate each kind of service 
 pictures of the listed vendors. The files are in `site/public/photos`, named by their Pexels photo
 number (photo 123 is at `pexels.com/photo/123`), and `site/src/photos.js` says which picture goes
 where. The fonts are Bricolage Grotesque and DM Sans, both under the SIL Open Font License.
+
+## What the website adds beyond the booking flow
+
+| Feature | Where | Notes |
+| --- | --- | --- |
+| Budget planner | `/budget` | Builds a plan that fits a budget (`site/src/budget.js`); every part can be swapped. |
+| Shared plan and pledges | `/share/<code>` | The plan travels inside the link. Pledges are promises, not payments. |
+| English / Luganda | header switch | Main wording only (`site/src/i18n.jsx`); the Luganda needs checking by a fluent speaker. |
+| Countdown and checklist | receipt page | Ticks are kept on the device. |
+| Install and offline use | `site/public/sw.js`, `manifest.webmanifest` | Built site only. Pages already opened work offline; prices and booking need a connection. |
+| Compare | tick boxes on `/services`, then `/compare` | Up to three services, costed for the customer's event. |
+| Availability | calendar on each service; warning on the plan | Sample calendar (`server/availability.js`) plus dates booked through the site. |
+| PDF receipt with QR code | receipt page | The code opens `/verify/<receipt no.>`, where a vendor can check the booking. |
+| Confetti, drum beat, sample plan | receipt page; home page | Skipped for visitors who ask for reduced motion. |
+
+Bookings and pledges go through `server/store.js`: memory by default, Netlify Blobs when hosted on
+Netlify (`netlify/functions/api.js`). Replace it with a database when the real backend arrives.
