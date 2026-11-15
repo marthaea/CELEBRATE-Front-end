@@ -120,6 +120,43 @@ function Thread({ booking, serviceId, vendor, messages, onSent }) {
   );
 }
 
+/** One to five stars and a few words about a vendor, once the event is over or paid for in full. */
+function ReviewForm({ booking, serviceId, vendor, onDone }) {
+  const [rating, setRating] = useState(0);
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSending(true);
+    try {
+      onDone(await more.review(booking.id, { serviceId, rating, text }));
+    } catch (err) {
+      setError(err.message);
+      setSending(false);
+    }
+  };
+
+  return (
+    <form className="thread" onSubmit={submit}>
+      <fieldset className="stars">
+        <legend className="quiet">How was {vendor}?</legend>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button type="button" key={n} className={n <= rating ? "on" : ""} aria-pressed={n === rating} aria-label={`${n} ${n === 1 ? "star" : "stars"}`} onClick={() => setRating(n)}>★</button>
+        ))}
+      </fieldset>
+      <div className="thread-form">
+        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={400} placeholder="A few words for other customers (optional)" aria-label="Your review" />
+        <button className="button fit" disabled={!rating || sending}>Post</button>
+      </div>
+      <ErrorNote>{error}</ErrorNote>
+      <p className="quiet">Your first name and review are shown on the vendor's page.</p>
+    </form>
+  );
+}
+
 /** Paying what is left, on the day or before it. */
 function Balance({ booking, methods, days, onPaid }) {
   const [open, setOpen] = useState(days <= 0);
@@ -185,6 +222,26 @@ export default function Receipt() {
   const [posted, setPosted] = useState(null);
   const messages = posted ?? thread.data ?? [];
   const [talkingTo, setTalkingTo] = useState("");
+  const [reviewing, setReviewing] = useState("");
+  // Vendors this booking has reviewed, remembered on this device so the form is not offered twice.
+  const reviewKey = `celebrate.reviewed.${id}`;
+  const [reviewed, setReviewed] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(reviewKey)) ?? [];
+    } catch {
+      return [];
+    }
+  });
+  const markReviewed = (serviceId) => {
+    const next = [...reviewed, serviceId];
+    setReviewed(next);
+    setReviewing("");
+    try {
+      localStorage.setItem(reviewKey, JSON.stringify(next));
+    } catch {
+      // The server still refuses a second review.
+    }
+  };
   const paidUp = (next) => {
     setSettled(next);
     localBookings.save(next);
@@ -214,6 +271,7 @@ export default function Receipt() {
   };
 
   const days = booking ? daysUntil(booking.event.date) : null;
+  const canReview = booking && (!booking.balance || days <= 0);
 
   return (
     <div className="page centre-page">
@@ -244,6 +302,7 @@ export default function Receipt() {
           <p className="quiet centre">The PDF carries a QR code. A vendor scans it on the day to check the booking.</p>
 
           <h2 className="caps">{t("Track your vendors")}</h2>
+          {!canReview && <p className="quiet">You can review each vendor once the event has happened or the balance is paid.</p>}
           <ul className="lines">
             {booking.vendors.map((v, index) => {
               // Older bookings did not record which service each vendor was for; the plan's lines are in the same order.
@@ -254,13 +313,17 @@ export default function Receipt() {
                 <li key={`${v.category}-${v.vendor}`} className="vendor-row">
                   <div className="vendor-head">
                     <p>{t(v.category)} <span className="quiet">· {v.vendor}</span></p>
-                    <span className={`state ${v.status === "Confirmed" ? "confirmed" : "waiting"}`}>{v.status}</span>
+                    <span className={`state ${v.status === "Confirmed" ? "confirmed" : v.status === "Declined" ? "off" : "waiting"}`}>{v.status}</span>
                   </div>
+                  {v.status === "Declined" && <p className="field-error">{v.vendor} cannot take this booking. Message them, or contact Celebrate to arrange a replacement.</p>}
                   <div className="vendor-actions">
                     <button className="chip" aria-expanded={open} onClick={() => setTalkingTo(open ? "" : serviceId)}>{open ? "Close messages" : count ? `Messages (${count})` : "Message"}</button>
                     <Link className="chip" to={`/service/${serviceId}#visit`}>Book a visit</Link>
+                    {canReview && !reviewed.includes(serviceId) && <button className="chip" aria-expanded={reviewing === serviceId} onClick={() => setReviewing(reviewing === serviceId ? "" : serviceId)}>Leave a review</button>}
+                    {reviewed.includes(serviceId) && <span className="quiet">Reviewed. Thank you.</span>}
                   </div>
                   {open && <Thread booking={booking} serviceId={serviceId} vendor={v.vendor} messages={messages} onSent={setPosted} />}
+                  {reviewing === serviceId && <ReviewForm booking={booking} serviceId={serviceId} vendor={v.vendor} onDone={() => markReviewed(serviceId)} />}
                 </li>
               );
             })}

@@ -82,6 +82,7 @@ export default function Service() {
   const added = plan.items.includes(id);
   const clash = useLoad(() => more.availability(plan.event.date, [id]), [id, plan.event.date]);
   const free = clash.data ? clash.data.unavailable.length === 0 : null;
+  const reviews = useLoad(() => more.reviews(id).catch(() => []), [id]);
   const category = meta.data?.categories.find((c) => c.id === service?.category);
 
   if (error) return <div className="page"><ErrorNote>{error}</ErrorNote><Link to="/services" className="link-caps">All services</Link></div>;
@@ -125,6 +126,20 @@ export default function Service() {
         </section>
 
         {category?.visit && <Visit service={service} kind={category.visit} />}
+
+        {reviews.data?.length > 0 && (
+          <section className="detail">
+            <h2 className="caps">Reviews from Celebrate customers</h2>
+            <ul className="reviews">
+              {[...reviews.data].reverse().slice(0, 6).map((review) => (
+                <li key={review.id}>
+                  <p><span className="stars-shown" aria-label={`${review.rating} out of 5`}>{"★".repeat(review.rating)}<span>{"★".repeat(5 - review.rating)}</span></span> {review.name} · {review.eventType}</p>
+                  {review.text && <p>“{review.text}”</p>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {service.review && (
           <section className="detail">

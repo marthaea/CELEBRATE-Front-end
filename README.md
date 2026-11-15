@@ -127,3 +127,30 @@ Until keys are set, the login uses Cloudflare's public test keys, which always p
 4. Redeploy. The note about test keys on the log in page disappears.
 
 Keep the secret key out of the repository.
+
+## Vendor workspace, admin dashboard and reviews
+
+| Who | Where | What they do |
+| --- | --- | --- |
+| A business | `/vendors` | Applies to be listed. The application waits for the admin. |
+| Vendor | `/vendor` | Signs in with business name and password. Confirms or declines bookings, approves appointments, marks busy days on a calendar, answers customers' messages, and sees reviews and what they are owed. |
+| Admin | `/admin` | Signs in with a password. Approves, rejects, verifies, suspends and adds vendors, sets their passwords, sees every customer payment and balance, records payouts to vendors, sees appointments, and removes reviews. |
+| Customer | receipt page | Reviews each vendor (1 to 5 stars and a few words) once the event has happened or the balance is paid. Reviews update the vendor's rating. |
+
+Availability now comes from two real sources only: events booked through the site and the busy days
+vendors mark themselves. A suspended vendor's services disappear from the catalogue and cannot be booked.
+
+### Before real use
+
+Set these on the host (Netlify: **Site configuration → Environment variables**), then redeploy:
+
+- `ADMIN_PASSWORD`: the admin's password. **Until it is set the site is in demo mode**: the admin
+  password is `celebrate-admin`, every sample business signs in with `celebrate-vendor`, and both are
+  shown on the sign-in pages. Setting it turns all of that off; sample businesses then need a
+  password set by the admin.
+- `SESSION_SECRET`: a long random string used to sign sign-ins.
+- `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`: see above. Vendor and admin sign-in and vendor
+  applications all go through the same Cloudflare check.
+
+Still to come with the real backend: customer accounts (a booking is reached by its receipt number,
+not a login), vendors adding their own listings, and moving real money.

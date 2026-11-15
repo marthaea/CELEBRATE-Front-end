@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BadgeCheck, CalendarCheck, Wallet } from "lucide-react";
 import { usePlan } from "../../../src/plan.jsx";
 import { api, useLoad } from "../../../src/api.js";
 import { more } from "../extra.js";
-import { Art, ErrorNote, Mark, PageHead } from "../components.jsx";
+import { staff } from "../staff.js";
+import { Art, ErrorNote, HumanCheck, Mark, PageHead } from "../components.jsx";
 import { useT } from "../i18n.jsx";
 
 /** Two halves: a photograph with a message on the left, the page's content on the right. */
@@ -24,43 +25,6 @@ function Split({ photo, heading, line, children }) {
   );
 }
 
-/** Cloudflare Turnstile: a check that the visitor is a person. Calls onToken with the proof, or "" when it lapses. */
-function HumanCheck({ siteKey, onToken, onProblem }) {
-  const box = useRef(null);
-  useEffect(() => {
-    if (!siteKey) return undefined;
-    let widget;
-    let gone = false;
-    const show = () => {
-      if (gone || !box.current || !window.turnstile) return;
-      widget = window.turnstile.render(box.current, {
-        sitekey: siteKey,
-        callback: onToken,
-        "expired-callback": () => onToken(""),
-        "error-callback": () => onProblem("The security check could not run. Check your connection and reload the page."),
-      });
-    };
-    if (window.turnstile) show();
-    else {
-      let script = document.getElementById("turnstile-script");
-      if (!script) {
-        script = document.createElement("script");
-        script.id = "turnstile-script";
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-        script.async = true;
-        document.head.append(script);
-      }
-      script.addEventListener("load", show);
-      script.addEventListener("error", () => onProblem("The security check could not load. Check your connection and reload the page."));
-    }
-    return () => {
-      gone = true;
-      if (widget !== undefined) window.turnstile?.remove(widget);
-    };
-  }, [siteKey]);
-  return <div ref={box} className="human-check" />;
-}
-
 export function Account() {
   const plan = usePlan();
   const t = useT();
@@ -70,6 +34,7 @@ export function Account() {
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [tries, setTries] = useState(0);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -82,6 +47,9 @@ export function Account() {
     } catch (err) {
       setError(err.message);
       setSending(false);
+      // A check can be used once, so a failed try needs a fresh one.
+      setToken("");
+      setTries(tries + 1);
     }
   };
 
@@ -97,7 +65,7 @@ export function Account() {
         </label>
         <div className="field">
           <span className="caps">Security check</span>
-          <HumanCheck siteKey={meta.data?.turnstile.siteKey} onToken={setToken} onProblem={setError} />
+          <HumanCheck siteKey={meta.data?.turnstile.siteKey} onToken={setToken} onProblem={setError} resetKey={tries} />
           <small className="quiet">Cloudflare confirms you are a person before you are let in.{meta.data?.turnstile.test ? " Running with Cloudflare's test keys, which always pass." : ""}</small>
         </div>
         <ErrorNote>{error || meta.error}</ErrorNote>
@@ -117,10 +85,33 @@ const REASONS = [
 
 export function Vendors() {
   const t = useT();
+  const meta = useLoad(api.meta, []);
+  const [form, setForm] = useState({ business: "", owner: "", category: "catering", district: "Kampala", about: "", password: "" });
+  const [token, setToken] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const [tries, setTries] = useState(0);
+  const [done, setDone] = useState(null);
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSending(true);
+    try {
+      setDone(await staff.apply({ ...form, token }));
+    } catch (err) {
+      setError(err.message);
+      setToken("");
+      setTries(tries + 1);
+    }
+    setSending(false);
+  };
+
   return (
-    <Split photo="cat:catering" heading="Bring your business to the celebration." line="Tent hire, caterers, venues, cakes, sound, photographers, MCs and games.">
+    <Split photo="cat:catering" heading="Bring your business to the celebration." line="Tent hire, caterers, venues, cakes, drinks, attire, sound, photographers, MCs and games.">
       <PageHead eyebrow={t("For vendors")} title={t("List my business")}>
-        <p className="quiet">Vendor sign-up is not open yet. This is what listing on Celebrate will give you.</p>
+        <p className="quiet">Apply below. The Celebrate team checks every business before it goes live. Already approved? <Link to="/vendor" className="link-quiet">Vendor sign in</Link></p>
       </PageHead>
       <ul className="reasons">
         {REASONS.map(({ icon: Icon, title, text }) => (
@@ -130,7 +121,34 @@ export function Vendors() {
           </li>
         ))}
       </ul>
-      <Link to="/services" className="button outline">See who is listed</Link>
+
+      {done ? (
+        <p className="aside-note" role="status">
+          <strong>Application received.</strong> {done.name} is now waiting to be checked. Once the Celebrate team approves it, sign in at <Link to="/vendor" className="link-quiet">Vendor sign in</Link> with your business name and the password you chose.
+        </p>
+      ) : (
+        <form className="form" onSubmit={submit}>
+          <div className="fields">
+            <label className="field"><span className="caps">Business name</span><input value={form.business} onChange={set("business")} maxLength={60} autoComplete="organization" required /></label>
+            <label className="field"><span className="caps">Owner's name</span><input value={form.owner} onChange={set("owner")} maxLength={60} autoComplete="name" required /></label>
+            <label className="field"><span className="caps">What you do</span>
+              <select value={form.category} onChange={set("category")}>{(meta.data?.categories ?? []).map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}</select>
+            </label>
+            <label className="field"><span className="caps">District</span>
+              <select value={form.district} onChange={set("district")}>{(meta.data?.districts ?? []).map((d) => <option key={d}>{d}</option>)}</select>
+            </label>
+          </div>
+          <label className="field"><span className="caps">About your business (optional)</span><input value={form.about} onChange={set("about")} maxLength={400} placeholder="How long you have traded, what you are known for" /></label>
+          <label className="field"><span className="caps">Choose a password</span><input type="password" value={form.password} onChange={set("password")} minLength={8} autoComplete="new-password" required /><small className="quiet">At least 8 characters. You will sign in with it once approved.</small></label>
+          <div className="field">
+            <span className="caps">Security check</span>
+            <HumanCheck siteKey={meta.data?.turnstile.siteKey} onToken={setToken} onProblem={setError} resetKey={tries} />
+          </div>
+          <ErrorNote>{error}</ErrorNote>
+          <button className="button" disabled={!token || sending}>{sending ? "Sending…" : "Apply to be listed"}</button>
+          <p className="quiet">We keep what you enter to check and run your listing. See our <Link to="/privacy" className="link-quiet">privacy policy</Link>.</p>
+        </form>
+      )}
     </Split>
   );
 }

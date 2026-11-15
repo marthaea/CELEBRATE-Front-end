@@ -4,6 +4,8 @@ import { addExtras, readPayment, TURNSTILE } from "./extras.js";
 import { buildQuote, DEPOSIT_RATE, depositFor, PLATFORM_FEE_RATE, validateEvent } from "./pricing.js";
 import { bookedDays, nextFreeDate, unavailable } from "./availability.js";
 import { read, write } from "./store.js";
+import { addStaff, DEMO, DEMO_ADMIN_PASSWORD, DEMO_VENDOR_PASSWORD } from "./staff.js";
+import { hiddenServiceIds, loadBusy, loadReviews, withReviews } from "./vendors.js";
 
 const app = express();
 app.use(express.json({ limit: "50kb" }));
@@ -33,13 +35,21 @@ app.get("/api/meta", (_req, res) => {
     eventTypes: EVENT_TYPES, districts: DISTRICTS, categories: CATEGORIES, paymentMethods: PAYMENT_METHODS,
     depositRate: DEPOSIT_RATE, visitTimes: VISIT_TIMES,
     turnstile: { siteKey: TURNSTILE.siteKey, test: TURNSTILE.test },
+    // In demo mode (no ADMIN_PASSWORD set) the sign-in pages show these so the interfaces can be tried.
+    demo: DEMO ? { admin: DEMO_ADMIN_PASSWORD, vendor: DEMO_VENDOR_PASSWORD } : null,
   });
 });
 
-app.get("/api/services", (req, res) => {
+/** The catalogue customers can see: vendors in good standing, with ratings brought up to date. */
+async function catalogue() {
+  const [hidden, reviews] = await Promise.all([hiddenServiceIds(), loadReviews()]);
+  return SERVICES.filter((service) => !hidden.has(service.id)).map((service) => withReviews(service, reviews));
+}
+
+app.get("/api/services", safe(async (req, res) => {
   const { category, filter } = req.query;
   const q = String(req.query.q ?? "").trim().toLowerCase();
-  let list = SERVICES;
+  let list = await catalogue();
   if (category) list = list.filter((service) => service.category === category);
   if (q) {
     // Every word must appear somewhere; "in" and "near" are ignored so "tents in Mukono" works.
@@ -53,17 +63,18 @@ app.get("/api/services", (req, res) => {
   if (filter === "top") list = list.filter((service) => service.rating >= 4.7);
   if (filter === "offers") list = list.filter((service) => service.wasPrice);
   res.json(list);
-});
+}));
 
-app.get("/api/services/:id", (req, res) => {
-  const service = byId.get(req.params.id);
+app.get("/api/services/:id", safe(async (req, res) => {
+  const service = (await catalogue()).find((s) => s.id === req.params.id);
   if (!service) return res.status(404).json({ error: "We could not find that service." });
   res.json(service);
-});
+}));
 
-app.get("/api/offers", (_req, res) => {
-  res.json(OFFER_IDS.map((id) => byId.get(id)));
-});
+app.get("/api/offers", safe(async (_req, res) => {
+  const list = await catalogue();
+  res.json(OFFER_IDS.map((id) => list.find((s) => s.id === id)).filter(Boolean));
+}));
 
 app.post("/api/quote", (req, res) => {
   const { event, items } = req.body ?? {};
@@ -76,13 +87,14 @@ app.post("/api/quote", (req, res) => {
 
 // Every way of filling each category for this event, with what it would cost all-in before the
 // platform fee. The budget planner and the compare page are built on this.
-app.post("/api/options", (req, res) => {
+app.post("/api/options", safe(async (req, res) => {
   const { event } = req.body ?? {};
   const errors = validateEvent(event);
   if (errors.length) return res.status(400).json({ error: errors.join(" ") });
+  const list = await catalogue();
   const categories = CATEGORIES.map((category) => ({
     ...category,
-    options: SERVICES.filter((service) => service.category === category.id)
+    options: list.filter((service) => service.category === category.id)
       .map((service) => {
         const quote = buildQuote([service], event);
         const { id, name, vendor, district, rating, reviews, verified } = service;
@@ -91,13 +103,13 @@ app.post("/api/options", (req, res) => {
       .sort((a, b) => a.cost - b.cost),
   }));
   res.json({ categories, feeRate: PLATFORM_FEE_RATE });
-});
+}));
 
 app.get("/api/services/:id/availability", safe(async (req, res) => {
   if (!byId.has(req.params.id)) return res.status(404).json({ error: "We could not find that service." });
   const month = String(req.query.month ?? "");
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return res.status(400).json({ error: "Choose a month." });
-  res.json({ month, booked: bookedDays(req.params.id, month, await loadBookings()), sample: true });
+  res.json({ month, booked: bookedDays(req.params.id, month, await loadBookings(), await loadBusy()) });
 }));
 
 app.post("/api/availability", safe(async (req, res) => {
@@ -107,8 +119,9 @@ app.post("/api/availability", safe(async (req, res) => {
   if (error) return res.status(400).json({ error });
   const ids = services.map((service) => service.id);
   const bookings = await loadBookings();
-  const clash = unavailable(ids, date, bookings);
-  res.json({ date, unavailable: clash, nextFree: clash.length ? nextFreeDate(ids, date, bookings) : date });
+  const busy = await loadBusy();
+  const clash = unavailable(ids, date, bookings, busy);
+  res.json({ date, unavailable: clash, nextFree: clash.length ? nextFreeDate(ids, date, bookings, busy) : date });
 }));
 
 app.post("/api/bookings", safe(async (req, res) => {
@@ -122,7 +135,9 @@ app.post("/api/bookings", safe(async (req, res) => {
   if (paymentError) return res.status(400).json({ error: paymentError });
 
   const bookings = await loadBookings();
-  const clash = unavailable(services.map((service) => service.id), event.date, bookings);
+  const hidden = await hiddenServiceIds();
+  if (services.some((service) => hidden.has(service.id))) return res.status(409).json({ error: "A service in your plan is no longer available. Remove it and try again." });
+  const clash = unavailable(services.map((service) => service.id), event.date, bookings, await loadBusy());
   if (clash.length) {
     const names = clash.map((id) => byId.get(id).vendor).join(", ");
     return res.status(409).json({ error: `Not free on that date: ${names}. Choose another date or swap the service.` });
@@ -220,6 +235,7 @@ app.post("/api/pledges/:key", safe(async (req, res) => {
 }));
 
 addExtras(app, { safe, loadBookings, byId, categoryById });
+addStaff(app, { safe, loadBookings });
 
 app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 

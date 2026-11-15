@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Scale } from "lucide-react";
 import { toISODate } from "../../src/format.js";
 import { useLoad } from "../../src/api.js";
@@ -135,6 +135,8 @@ export function Footer() {
         <nav aria-label="Celebrate">
           <h2 className="caps">Celebrate</h2>
           <Link to="/vendors">{t("List my business")}</Link>
+          <Link to="/vendor">Vendor sign in</Link>
+          <Link to="/admin">Admin</Link>
           <Link to="/privacy">Privacy</Link>
         </nav>
       </div>
@@ -227,7 +229,6 @@ export function Calendar({ serviceId, value, onPick }) {
       </div>
       {error && <p className="field-error">{error}</p>}
       <p className="calendar-key"><span className="key free" /> Free <span className="key taken" /> Booked <span className="key picked" /> Your date</p>
-      <p className="quiet">Sample calendar: vendors' real diaries are not connected yet.</p>
     </div>
   );
 }
@@ -294,5 +295,136 @@ export function Summary({ quote, categories, onRemove }) {
         <p className="quiet">No hidden costs. This is all you pay.</p>
       </div>
     </>
+  );
+}
+
+/**
+ * Cloudflare Turnstile: a check that the visitor is a person. Calls onToken with the proof, or "" when it lapses.
+ * A proof works once; change `resetKey` to ask for a new one after a failed try.
+ */
+export function HumanCheck({ siteKey, onToken, onProblem, resetKey = 0 }) {
+  const box = useRef(null);
+  useEffect(() => {
+    if (!siteKey) return undefined;
+    let widget;
+    let gone = false;
+    const show = () => {
+      if (gone || !box.current || !window.turnstile) return;
+      widget = window.turnstile.render(box.current, {
+        sitekey: siteKey,
+        callback: onToken,
+        "expired-callback": () => onToken(""),
+        "error-callback": () => onProblem("The security check could not run. Check your connection and reload the page."),
+      });
+    };
+    if (window.turnstile) show();
+    else {
+      let script = document.getElementById("turnstile-script");
+      if (!script) {
+        script = document.createElement("script");
+        script.id = "turnstile-script";
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        document.head.append(script);
+      }
+      script.addEventListener("load", show);
+      script.addEventListener("error", () => onProblem("The security check could not load. Check your connection and reload the page."));
+    }
+    return () => {
+      gone = true;
+      if (widget !== undefined) window.turnstile?.remove(widget);
+    };
+  }, [siteKey, resetKey]);
+  return <div ref={box} className="human-check" />;
+}
+
+/** The sign-in form shared by the vendor and admin interfaces. */
+export function StaffSignIn({ title, eyebrow, intro, askName, demoHint, turnstile, onSubmit, children }) {
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [token, setToken] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const [tries, setTries] = useState(0);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSending(true);
+    try {
+      await onSubmit({ name, password, token });
+    } catch (err) {
+      setError(err.message);
+      setSending(false);
+      setToken("");
+      setTries(tries + 1);
+    }
+  };
+
+  return (
+    <div className="page centre-page">
+      <Mark className="big" />
+      <PageHead eyebrow={eyebrow} title={title}><p className="quiet">{intro}</p></PageHead>
+      <form className="form narrow" onSubmit={submit}>
+        {askName && (
+          <label className="field">
+            <span className="caps">Business name</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="organization" placeholder="e.g. Mama's Kitchen" maxLength={60} required />
+          </label>
+        )}
+        <label className="field">
+          <span className="caps">Password</span>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
+        </label>
+        <div className="field">
+          <span className="caps">Security check</span>
+          <HumanCheck siteKey={turnstile?.siteKey} onToken={setToken} onProblem={setError} resetKey={tries} />
+        </div>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="button" disabled={!token || !password || sending}>{sending ? "Checking…" : "Sign in"}</button>
+        {demoHint && <p className="aside-note"><strong>Demo mode.</strong> {demoHint}</p>}
+      </form>
+      {children}
+    </div>
+  );
+}
+
+const MONTH_DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+
+/** A month the vendor controls: tap a day to mark it busy or free. Days with an event booked are fixed. */
+export function BusyCalendar({ busy, events, onToggle }) {
+  const today = toISODate(new Date());
+  const [month, setMonth] = useState(today.slice(0, 7));
+  const [year, m] = month.split("-").map(Number);
+  const first = new Date(year, m - 1, 1);
+  const blanks = (first.getDay() + 6) % 7;
+  const count = new Date(year, m, 0).getDate();
+  const step = (by) => setMonth(toISODate(new Date(year, m - 1 + by, 1)).slice(0, 7));
+
+  return (
+    <div className="calendar wide">
+      <div className="calendar-head">
+        <button type="button" className="icon-button" onClick={() => step(-1)} disabled={month <= today.slice(0, 7)} aria-label="Previous month"><ChevronLeft size={18} /></button>
+        <p aria-live="polite">{first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</p>
+        <button type="button" className="icon-button" onClick={() => step(1)} aria-label="Next month"><ChevronRight size={18} /></button>
+      </div>
+      <div className="calendar-grid">
+        {MONTH_DAYS.map((day) => <span key={day} className="calendar-day-name">{day}</span>)}
+        {Array.from({ length: blanks }, (_, i) => <span key={`b${i}`} />)}
+        {Array.from({ length: count }, (_, i) => {
+          const iso = `${month}-${String(i + 1).padStart(2, "0")}`;
+          const event = events.includes(iso);
+          const blocked = busy.includes(iso);
+          return (
+            <button type="button" key={iso} disabled={iso < today || event} onClick={() => onToggle(iso, !blocked)}
+              className={`${event ? "event" : ""} ${blocked ? "busy" : ""}`} aria-pressed={blocked}
+              aria-label={`${i + 1} ${first.toLocaleDateString("en-GB", { month: "long" })}${event ? ", event booked" : blocked ? ", marked busy" : ", free"}`}>
+              {i + 1}
+            </button>
+          );
+        })}
+      </div>
+      <p className="calendar-key"><span className="key free" /> Free <span className="key busy" /> Busy (you) <span className="key event" /> Event booked</p>
+    </div>
   );
 }

@@ -25,6 +25,8 @@ export const more = {
   bookVisit: (data) => request("/appointments", data),
   visits: (ids) => request(`/appointments?ids=${ids.join(",")}`),
   cancelVisit: (id) => request(`/appointments/${id}/cancel`, {}),
+  review: (id, data) => request(`/bookings/${id}/reviews`, data),
+  reviews: (id) => request(`/services/${encodeURIComponent(id)}/reviews`),
 };
 
 // The appointments made in this browser, by id. Without accounts, this is how "my appointments" is known.

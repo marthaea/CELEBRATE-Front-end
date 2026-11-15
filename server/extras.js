@@ -4,6 +4,7 @@
 import { PAYMENT_METHODS, VISIT_TIMES } from "./data.js";
 import { unavailable } from "./availability.js";
 import { read, write } from "./store.js";
+import { loadBusy } from "./vendors.js";
 
 // Cloudflare Turnstile checks that a login comes from a person. Until real keys are set
 // (TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY), Cloudflare's public test keys are used: they always pass.
@@ -31,6 +32,22 @@ export function hideContacts(text) {
     .replace(/\+?\d[\d\s().-]{7,}\d/g, "[number removed]");
 }
 
+/** Asks Cloudflare whether a Turnstile token is good. Returns {} or { error, status }. */
+export async function verifyHuman(token) {
+  if (!token) return { error: "Complete the security check first.", status: 400 };
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret: TURNSTILE.secret, response: String(token) }),
+    });
+    const verdict = await response.json();
+    return verdict?.success ? {} : { error: "The security check did not pass. Please try again.", status: 403 };
+  } catch {
+    return { error: "We could not reach the security check. Try again in a moment.", status: 503 };
+  }
+}
+
 const isDate = (text) => /^\d{4}-\d{2}-\d{2}$/.test(text) && !Number.isNaN(Date.parse(text));
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -48,8 +65,8 @@ export function addExtras(app, { safe, loadBookings, byId, categoryById }) {
     res.json(settled);
   }));
 
-  // Messages between a customer and the vendors on their booking. Vendors have no inbox yet, so
-  // only the customer's side arrives; the first message in each conversation gets a note saying so.
+  // Messages between a customer and the vendors on their booking. Vendors read and answer them
+  // in their workspace (staff.js).
   const messagesKey = (id) => `messages:${id}`;
 
   app.get("/api/bookings/:id/messages", safe(async (req, res) => {
@@ -73,7 +90,7 @@ export function addExtras(app, { safe, loadBookings, byId, categoryById }) {
     const at = new Date().toISOString();
     const next = [...all, { serviceId, from: "customer", text, hidden: text !== raw, at }];
     if (!all.some((message) => message.serviceId === serviceId)) {
-      next.push({ serviceId, from: "system", text: `Delivered to ${vendor}. Vendor inboxes are not open yet, so replies will appear here once vendors can sign in.`, at });
+      next.push({ serviceId, from: "system", text: `Delivered to ${vendor}. Their reply will appear here.`, at });
     }
     await write(messagesKey(booking.id), next);
     res.status(201).json(next);
@@ -88,7 +105,7 @@ export function addExtras(app, { safe, loadBookings, byId, categoryById }) {
     if (!service) return res.status(404).json({ error: "We could not find that service." });
     const date = String(req.query.date ?? "");
     if (!isDate(date)) return res.status(400).json({ error: "Choose a date." });
-    const atEvent = unavailable([service.id], date, await loadBookings()).length > 0;
+    const atEvent = unavailable([service.id], date, await loadBookings(), await loadBusy()).length > 0;
     const taken = (await loadVisits()).filter((v) => v.serviceId === service.id && v.date === date && live(v)).map((v) => v.time);
     const free = atEvent || date <= today() ? [] : VISIT_TIMES.filter((time) => !taken.includes(time));
     res.json({ date, kind: categoryById.get(service.category).visit, free, atEvent });
@@ -103,8 +120,8 @@ export function addExtras(app, { safe, loadBookings, byId, categoryById }) {
     if (!name) return res.status(400).json({ error: "Tell us your name." });
     if (!isDate(date) || date <= today()) return res.status(400).json({ error: "Choose a date from tomorrow onwards." });
     if (!VISIT_TIMES.includes(time)) return res.status(400).json({ error: "Choose a time." });
-    if (unavailable([service.id], date, await loadBookings()).length) {
-      return res.status(409).json({ error: `${service.vendor} is at an event that day. Choose another date.` });
+    if (unavailable([service.id], date, await loadBookings(), await loadBusy()).length) {
+      return res.status(409).json({ error: `${service.vendor} is not available that day. Choose another date.` });
     }
     const visits = await loadVisits();
     if (visits.some((v) => v.serviceId === service.id && v.date === date && v.time === time && live(v))) {
@@ -139,19 +156,8 @@ export function addExtras(app, { safe, loadBookings, byId, categoryById }) {
     const name = String(req.body?.name ?? "").trim().slice(0, 40);
     const token = String(req.body?.token ?? "");
     if (!name) return res.status(400).json({ error: "Tell us your name." });
-    if (!token) return res.status(400).json({ error: "Complete the security check first." });
-    let verdict;
-    try {
-      const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ secret: TURNSTILE.secret, response: token }),
-      });
-      verdict = await response.json();
-    } catch {
-      return res.status(503).json({ error: "We could not reach the security check. Try again in a moment." });
-    }
-    if (!verdict?.success) return res.status(403).json({ error: "The security check did not pass. Please try again." });
+    const human = await verifyHuman(token);
+    if (human.error) return res.status(human.status).json({ error: human.error });
     res.json({ ok: true, name });
   }));
 }

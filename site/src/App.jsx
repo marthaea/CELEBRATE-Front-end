@@ -13,6 +13,8 @@ import Share from "./pages/Share.jsx";
 import Compare from "./pages/Compare.jsx";
 import Verify from "./pages/Verify.jsx";
 import Privacy from "./pages/Privacy.jsx";
+import Vendor from "./pages/Vendor.jsx";
+import Admin from "./pages/Admin.jsx";
 import { Account, NotFound, Vendors } from "./pages/Simple.jsx";
 
 export default function App() {
@@ -54,6 +56,8 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/account" element={<Account />} />
           <Route path="/vendors" element={<Vendors />} />
+          <Route path="/vendor" element={<Vendor />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
