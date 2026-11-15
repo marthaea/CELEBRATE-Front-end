@@ -144,7 +144,10 @@ app.get("/api/bookings/:id/receipt", (req, res) => {
 app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 
 // In production the same server also serves the built React app.
-const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
+// STATIC_DIR picks which front end to serve: the phone app (dist, the default) or the website (site/dist).
+const dist = process.env.STATIC_DIR
+  ? path.resolve(process.env.STATIC_DIR)
+  : path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
 if (fs.existsSync(dist)) {
   app.use(express.static(dist));
   app.get("*", (_req, res) => res.sendFile(path.join(dist, "index.html")));

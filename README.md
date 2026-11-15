@@ -29,6 +29,17 @@ npm test
 
 checks the pricing rules, including that the wireframe's sample plan adds up to UGX 16,995,000.
 
+## Two front ends, one API
+
+| | Phone app | Website |
+| --- | --- | --- |
+| Folder | `src/` | `site/` |
+| Look | App-style screens from the wireframe | Editorial, gallery-style pages for wide screens (also works on phones) |
+| Develop | `npm run dev` → http://localhost:5174 | `npm run dev:site` → http://localhost:5175 |
+| Build and serve | `npm run build && npm start` | `npm run build:site && npm run start:site` |
+
+Both do the same things: browse and search services, build a plan, enter event details, see the grand total, pay, get a receipt, and follow bookings. The website reuses the phone app's API client and plan logic (`src/api.js`, `src/plan.jsx`, `src/format.js`). On the website, the event details and the grand total share one page, and the total updates as you type.
+
 ## Layout
 
 | Path | What it holds |
@@ -40,6 +51,9 @@ checks the pricing rules, including that the wireframe's sample plan adds up to 
 | `src/components/ui.jsx` | Shared pieces: pattern strip, logo, bottom navigation, plan bar |
 | `src/plan.jsx` | The customer's plan and event details, kept in the browser |
 | `src/styles.css` | Colours and all styling |
+| `site/src/pages/` | The website's pages |
+| `site/src/components.jsx` | The website's header, footer, service card, plan summary and picture stand-ins |
+| `site/src/styles.css` | The website's styling |
 
 ## API
 
