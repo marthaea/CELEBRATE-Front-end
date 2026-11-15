@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Building2, CakeSlice, Camera, Gamepad2, Mic, Search, Speaker, Tent, Utensils, X } from "lucide-react";
 import { discountPercent, money } from "../../src/format.js";
 import { usePlan } from "../../src/plan.jsx";
+import { PHOTOS } from "./photos.js";
 
 const ICONS = {
   venues: Building2, tents: Tent, catering: Utensils, cakes: CakeSlice,
@@ -13,7 +14,15 @@ const ICONS = {
  * Stand-in for photography: a dark, grained colour field with a fine line drawing.
  * `seed` shifts the light so neighbouring tiles do not look identical.
  */
-export function Art({ category = "venues", seed = 0, className = "", label }) {
+export function Art({ category = "venues", seed = 0, className = "", label, photo, eager = false }) {
+  const picture = PHOTOS[photo] ?? PHOTOS[`cat:${category}`];
+  if (picture) {
+    return (
+      <div className={`art art-photo ${className}`}>
+        <img src={picture.src} alt={picture.alt} loading={eager ? "eager" : "lazy"} decoding="async" />
+      </div>
+    );
+  }
   const Icon = ICONS[category] ?? Building2;
   const x = 20 + ((seed * 37) % 60);
   const y = 15 + ((seed * 53) % 50);
@@ -96,7 +105,7 @@ export function Footer() {
         <Link to="/account">Account</Link>
         <Link to="/vendors">List my business</Link>
       </nav>
-      <p className="quiet">Kampala · Mukono · Wakiso · Entebbe · Jinja</p>
+      <p className="quiet">Kampala · Mukono · Wakiso · Entebbe · Jinja<br />Photographs from Pexels, for illustration.</p>
     </footer>
   );
 }
@@ -108,7 +117,7 @@ export function ServiceCard({ service, index = 0 }) {
   return (
     <Link to={`/service/${service.id}`} className="piece">
       <div className="piece-art">
-        <Art category={service.category} seed={index + service.name.length} label={service.photoCaption} />
+        <Art category={service.category} photo={service.id} seed={index + service.name.length} label={service.photoCaption} />
         {off > 0 && <span className="tag">{off}% off</span>}
         {items.includes(service.id) && <span className="tag in-plan">In my plan</span>}
         <span className="piece-view">View</span>

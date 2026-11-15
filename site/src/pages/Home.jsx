@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { api, useLoad } from "../../../src/api.js";
 import { usePlan } from "../../../src/plan.jsx";
-import { Art, Drum, ErrorNote, Loading, ServiceCard } from "../components.jsx";
+import { Art, ErrorNote, Loading, ServiceCard } from "../components.jsx";
 
 export default function Home() {
   const plan = usePlan();
@@ -17,8 +17,8 @@ export default function Home() {
   return (
     <>
       <section className="hero">
-        <div className="hero-panel hero-left" aria-hidden="true" />
-        <div className="hero-panel hero-right" aria-hidden="true"><Drum className="hero-drum" /></div>
+        <div className="hero-panel"><Art photo="hero-left" eager /></div>
+        <div className="hero-panel"><Art photo="hero-right" eager /></div>
         <div className="hero-centre">
           <h1 className="wordmark large">CELEBRATE</h1>
           <a href="#intro" className="link-caps on-dark">Enter</a>
@@ -52,7 +52,7 @@ export default function Home() {
         <div className="grid four">
           {meta.data?.categories.map((category, index) => (
             <Link key={category.id} to={`/services/${category.id}`} className="piece">
-              <div className="piece-art tall"><Art category={category.id} seed={index * 3} label={category.title} /></div>
+              <div className="piece-art tall"><Art category={category.id} photo={`cat:${category.id}`} seed={index * 3} label={category.title} /></div>
               <h3>{category.title}</h3>
             </Link>
           ))}
@@ -72,7 +72,7 @@ export default function Home() {
       </section>
 
       <section className="feature">
-        <Art category="tents" seed={4} className="feature-art" label="A draped tent set up for a kwanjula" />
+        <Art photo="feature" className="feature-art" />
         <div className="feature-text">
           <h2 className="caps">One number. Every detail.</h2>
           <p>Tell us the date, the district and how many guests. We match tents and chairs to your numbers, add labour, transport and our 3% fee, and show you a single grand total.</p>

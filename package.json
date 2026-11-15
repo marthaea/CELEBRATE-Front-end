@@ -15,9 +15,9 @@
     "start:site": "STATIC_DIR=site/dist NODE_ENV=production node server/index.js"
   },
   "dependencies": {
-    "@fontsource/barlow-condensed": "^5.3.0",
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/dm-sans": "^5.3.0",
     "@fontsource/fredoka": "^5.1.0",
-    "@fontsource/jost": "^5.3.0",
     "@fontsource/noto-sans": "^5.1.0",
     "express": "^4.21.1",
     "lucide-react": "^0.462.0",

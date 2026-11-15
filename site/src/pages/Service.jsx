@@ -20,8 +20,8 @@ export default function Service() {
   return (
     <article className="product">
       <div className="product-art">
-        <Art category={service.category} seed={service.name.length} label={service.photoCaption} />
-        <p className="product-caption">{service.photoCaption} · 1 of {service.photos} photos</p>
+        <Art category={service.category} photo={service.id} seed={service.name.length} label={service.photoCaption} eager />
+        <p className="product-caption">Illustrative photograph · Pexels</p>
       </div>
       <div className="product-info">
         <Link to={`/services/${service.category}`} className="link-quiet">← {category?.title ?? "Services"}</Link>

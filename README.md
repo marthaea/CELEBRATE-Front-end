@@ -81,3 +81,11 @@ Both do the same things: browse and search services, build a plan, enter event d
 (`netlify/functions/api.js`), so connecting the repository to Netlify is enough; no settings
 need to be entered by hand. Bookings are kept in the function's memory, so they can vanish
 between requests on Netlify until a database is added.
+
+## Photographs and fonts (website)
+
+The website's photographs are stock pictures from [Pexels](https://www.pexels.com/license/), which
+are free to use without payment or credit. They illustrate each kind of service and are not
+pictures of the listed vendors. The files are in `site/public/photos`, named by their Pexels photo
+number (photo 123 is at `pexels.com/photo/123`), and `site/src/photos.js` says which picture goes
+where. The fonts are Bricolage Grotesque and DM Sans, both under the SIL Open Font License.
