@@ -9,7 +9,7 @@ import { useT } from "../i18n.jsx";
 import { ErrorNote, Loading, PageHead } from "../components.jsx";
 
 const QUICK = [5000000, 10000000, 20000000, 40000000];
-const COLOURS = { venues: "#ad1f22", tents: "#d42b2b", catering: "#f2b31c", cakes: "#f6d27a", sound: "#24140f", photos: "#e8743b", mcs: "#7a4a2a", games: "#c9b79c" };
+const COLOURS = { venues: "#ad1f22", tents: "#d42b2b", catering: "#f2b31c", cakes: "#f6d27a", sound: "#24140f", photos: "#e8743b", mcs: "#7a4a2a", games: "#c9b79c", drinks: "#3f8f8a", attire: "#b76a8a" };
 const MIN = 1000000;
 const MAX = 60000000;
 

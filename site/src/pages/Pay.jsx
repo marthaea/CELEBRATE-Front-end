@@ -23,13 +23,15 @@ export default function Pay() {
 
   const chosen = meta.data?.paymentMethods.find((m) => m.id === method);
   const total = quote.data?.total;
+  const rate = meta.data?.depositRate ?? 0.3;
+  const deposit = total ? Math.round(total * rate) : 0;
 
   const pay = async (e) => {
     e.preventDefault();
     setError("");
     setPaying(true);
     try {
-      const booking = await api.book({ event, items, payment: { method, phone }, customer: plan.name });
+      const booking = await api.book({ event, items, payment: { method, phone }, customer: plan.name, deposit: true });
       localBookings.save(booking);
       plan.clearItems();
       navigate(`/receipt/${booking.id}`, { replace: true, state: { fresh: true } });
@@ -42,7 +44,7 @@ export default function Pay() {
   return (
     <div className="page">
       <PageHead eyebrow="Step 4 of 4 · Payment" title={t("Pay your way")}>
-        <p className="quiet">{total ? `Amount due: ${money(total)}` : "Working out the amount due…"}</p>
+        <p className="quiet">{total ? `Deposit due now: ${money(deposit)}. The balance of ${money(total - deposit)} is paid on the day.` : "Working out the amount due…"}</p>
       </PageHead>
 
       <div className="split">
@@ -79,8 +81,8 @@ export default function Pay() {
               )}
 
               <ErrorNote>{error}</ErrorNote>
-              <button className="button" disabled={!total || paying}>{paying ? "Confirming…" : total ? `Pay ${money(total)}` : "Pay"}</button>
-              <p className="quiet centre">By paying you accept the terms and privacy policy.</p>
+              <button className="button" disabled={!total || paying}>{paying ? "Confirming…" : total ? `Pay deposit ${money(deposit)}` : "Pay deposit"}</button>
+              <p className="quiet centre">By paying you accept our <Link to="/privacy" className="link-quiet">privacy policy</Link>.</p>
             </>
           )}
         </form>
@@ -92,6 +94,12 @@ export default function Pay() {
           </div>
           {quote.loading && <Loading label="Adding it all up" />}
           {quote.data && <Summary quote={quote.data} categories={meta.data?.categories} />}
+          {quote.data && (
+            <dl className="sums due">
+              <div><dt>Deposit now ({Math.round(rate * 100)}%)</dt><dd>{money(deposit)}</dd></div>
+              <div><dt>Balance on the day</dt><dd>{money(total - deposit)}</dd></div>
+            </dl>
+          )}
         </aside>
       </div>
     </div>

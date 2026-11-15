@@ -72,9 +72,12 @@ export async function downloadReceipt(booking) {
   row(`Platform fee (${Math.round(booking.quote.feeRate * 100)}%)`, money(booking.quote.platformFee));
   y += 2;
   doc.setFillColor(255, 241, 214).roundedRect(left - 3, y - 6, right - left + 6, 13, 3, 3, "F");
-  doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(...ink).text("Grand total paid", left, y + 2);
-  doc.setTextColor(212, 43, 43).text(money(booking.paid), right, y + 2, { align: "right" });
-  y += 22;
+  doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(...ink).text("Grand total", left, y + 2);
+  doc.setTextColor(212, 43, 43).text(money(booking.total ?? booking.paid), right, y + 2, { align: "right" });
+  y += 16;
+  row(booking.balance ? "Deposit paid" : "Paid in full", money(booking.paid), true);
+  if (booking.balance) row("Balance due on the day", money(booking.balance), true);
+  y += 8;
 
   doc.addImage(qr, "PNG", left, y, 42, 42);
   doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(...ink).text("Vendors: scan to confirm this booking", left + 50, y + 12);

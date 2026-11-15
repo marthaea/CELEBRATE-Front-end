@@ -1,6 +1,7 @@
 import express from "express";
-import { CATEGORIES, DISTRICTS, EVENT_TYPES, OFFER_IDS, PAYMENT_METHODS, SERVICES } from "./data.js";
-import { buildQuote, PLATFORM_FEE_RATE, validateEvent } from "./pricing.js";
+import { CATEGORIES, DISTRICTS, EVENT_TYPES, OFFER_IDS, PAYMENT_METHODS, SERVICES, VISIT_TIMES } from "./data.js";
+import { addExtras, readPayment, TURNSTILE } from "./extras.js";
+import { buildQuote, DEPOSIT_RATE, depositFor, PLATFORM_FEE_RATE, validateEvent } from "./pricing.js";
 import { bookedDays, nextFreeDate, unavailable } from "./availability.js";
 import { read, write } from "./store.js";
 
@@ -28,7 +29,11 @@ function resolveItems(ids) {
 }
 
 app.get("/api/meta", (_req, res) => {
-  res.json({ eventTypes: EVENT_TYPES, districts: DISTRICTS, categories: CATEGORIES, paymentMethods: PAYMENT_METHODS });
+  res.json({
+    eventTypes: EVENT_TYPES, districts: DISTRICTS, categories: CATEGORIES, paymentMethods: PAYMENT_METHODS,
+    depositRate: DEPOSIT_RATE, visitTimes: VISIT_TIMES,
+    turnstile: { siteKey: TURNSTILE.siteKey, test: TURNSTILE.test },
+  });
 });
 
 app.get("/api/services", (req, res) => {
@@ -107,18 +112,14 @@ app.post("/api/availability", safe(async (req, res) => {
 }));
 
 app.post("/api/bookings", safe(async (req, res) => {
-  const { event, items, payment, customer } = req.body ?? {};
+  const { event, items, payment, customer, deposit } = req.body ?? {};
   const errors = validateEvent(event);
   if (errors.length) return res.status(400).json({ error: errors.join(" ") });
   const { services, error } = resolveItems(items);
   if (error) return res.status(400).json({ error });
 
-  const method = PAYMENT_METHODS.find((m) => m.id === payment?.method);
-  if (!method) return res.status(400).json({ error: "Choose how to pay." });
-  const phone = String(payment?.phone ?? "").replace(/\s+/g, "");
-  if (method.needsPhone && !/^(0|\+?256)7\d{8}$/.test(phone)) {
-    return res.status(400).json({ error: "Enter a valid mobile money number, like 0770 000 000." });
-  }
+  const { method, error: paymentError } = readPayment(payment);
+  if (paymentError) return res.status(400).json({ error: paymentError });
 
   const bookings = await loadBookings();
   const clash = unavailable(services.map((service) => service.id), event.date, bookings);
@@ -135,7 +136,10 @@ app.post("/api/bookings", safe(async (req, res) => {
     customer: String(customer ?? "").slice(0, 60),
     event,
     quote,
-    paid: quote.total,
+    // With `deposit`, part is paid now and the balance on the day; otherwise everything is paid now.
+    total: quote.total,
+    paid: deposit ? depositFor(quote.total) : quote.total,
+    balance: deposit ? quote.total - depositFor(quote.total) : 0,
     method: method.name,
     vendors: services.map((service) => ({
       category: categoryById.get(service.category).name,
@@ -214,6 +218,8 @@ app.post("/api/pledges/:key", safe(async (req, res) => {
   await write(key, next);
   res.status(201).json(next);
 }));
+
+addExtras(app, { safe, loadBookings, byId, categoryById });
 
 app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 

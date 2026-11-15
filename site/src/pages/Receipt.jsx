@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { api, useLoad } from "../../../src/api.js";
 import { formatDate, money, toISODate } from "../../../src/format.js";
-import { daysUntil, localBookings } from "../extra.js";
+import { daysUntil, localBookings, more } from "../extra.js";
 import { useT } from "../i18n.jsx";
 import { confetti, drumBeat } from "../party.js";
 import { ErrorNote, Loading, PageHead } from "../components.jsx";
@@ -79,11 +79,116 @@ function Checklist({ booking }) {
   );
 }
 
+/** The conversation with one vendor. Contact stays on the site: numbers and emails are removed on the way. */
+function Thread({ booking, serviceId, vendor, messages, onSent }) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const mine = messages.filter((message) => message.serviceId === serviceId);
+
+  const send = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSending(true);
+    try {
+      onSent(await more.sendMessage(booking.id, serviceId, text));
+      setText("");
+    } catch (err) {
+      setError(err.message);
+    }
+    setSending(false);
+  };
+
+  return (
+    <div className="thread">
+      {mine.length === 0 && <p className="quiet">Ask {vendor} anything about the day: timings, colours, the menu, access to the venue.</p>}
+      <ol aria-label={`Messages with ${vendor}`}>
+        {mine.map((message) => (
+          <li key={message.at + message.from} className={`bubble ${message.from}`}>
+            <p>{message.text}</p>
+            <small>{message.from === "customer" ? "You" : message.from === "vendor" ? vendor : "Celebrate"} · {new Date(message.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}{message.hidden ? " · contact details removed" : ""}</small>
+          </li>
+        ))}
+      </ol>
+      <form className="thread-form" onSubmit={send}>
+        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={500} placeholder={`Message ${vendor}`} aria-label={`Message ${vendor}`} />
+        <button className="button fit" disabled={sending || !text.trim()}>Send</button>
+      </form>
+      <ErrorNote>{error}</ErrorNote>
+      <p className="quiet">Phone numbers and email addresses are not shared. Keep everything here so there is a record.</p>
+    </div>
+  );
+}
+
+/** Paying what is left, on the day or before it. */
+function Balance({ booking, methods, days, onPaid }) {
+  const [open, setOpen] = useState(days <= 0);
+  const [method, setMethod] = useState("mtn");
+  const [phone, setPhone] = useState("");
+  const [error, setError] = useState("");
+  const [paying, setPaying] = useState(false);
+  const chosen = methods?.find((m) => m.id === method);
+
+  const pay = async (e) => {
+    e.preventDefault();
+    setError("");
+    setPaying(true);
+    try {
+      onPaid(await more.payBalance(booking.id, { method, phone }));
+    } catch (err) {
+      setError(err.message);
+      setPaying(false);
+    }
+  };
+
+  return (
+    <section className="balance">
+      <div>
+        <p className="caps">Balance due on the day</p>
+        <p className="grand-total">{money(booking.balance)}</p>
+        <p className="quiet">You have paid the deposit of {money(booking.paid)}. Pay the rest on {formatDate(booking.event.date)}, or earlier if you prefer.</p>
+      </div>
+      {!open && <button className="button outline" onClick={() => setOpen(true)}>Pay the balance now</button>}
+      {open && (
+        <form className="form" onSubmit={pay} noValidate>
+          <label className="field">
+            <span className="caps">How to pay</span>
+            <select value={method} onChange={(e) => { setMethod(e.target.value); setError(""); }}>
+              {(methods ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </label>
+          {chosen?.needsPhone && (
+            <label className="field">
+              <span className="caps">Mobile money number</span>
+              <input type="tel" inputMode="tel" autoComplete="tel" placeholder="0770 000 000" value={phone} onChange={(e) => { setPhone(e.target.value); setError(""); }} />
+            </label>
+          )}
+          <ErrorNote>{error}</ErrorNote>
+          <button className="button" disabled={paying || !methods}>{paying ? "Confirming…" : `Pay ${money(booking.balance)}`}</button>
+        </form>
+      )}
+    </section>
+  );
+}
+
 export default function Receipt() {
   const { id } = useParams();
   const t = useT();
   const { state } = useLocation();
-  const { data: booking, error, loading } = useBooking(id);
+  const loaded = useBooking(id);
+  const { error, loading } = loaded;
+  const meta = useLoad(api.meta, []);
+  // A booking changes when the balance is paid; `settled` holds the newer copy.
+  const [settled, setSettled] = useState(null);
+  const booking = settled?.id === id ? settled : loaded.data;
+  const thread = useLoad(() => more.messages(id).catch(() => []), [id]);
+  const [posted, setPosted] = useState(null);
+  const messages = posted ?? thread.data ?? [];
+  const [talkingTo, setTalkingTo] = useState("");
+  const paidUp = (next) => {
+    setSettled(next);
+    localBookings.save(next);
+  };
   const [making, setMaking] = useState(false);
   const [pdfError, setPdfError] = useState("");
 
@@ -126,10 +231,13 @@ export default function Receipt() {
 
           <dl className="sums ruled">
             <div><dt>E-receipt no.</dt><dd>{booking.id}</dd></div>
-            <div><dt>Paid</dt><dd>{money(booking.paid)}</dd></div>
+            <div><dt>Grand total</dt><dd>{money(booking.total ?? booking.paid)}</dd></div>
+            <div><dt>{booking.balance ? "Deposit paid" : "Paid in full"}</dt><dd>{money(booking.paid)}</dd></div>
             <div><dt>Method</dt><dd>{booking.method}</dd></div>
             <div><dt>Guests</dt><dd>{booking.event.guests.toLocaleString("en-US")}</dd></div>
           </dl>
+
+          {booking.balance > 0 && <Balance booking={booking} methods={meta.data?.paymentMethods} days={days} onPaid={paidUp} />}
 
           <button className="button" onClick={download} disabled={making}>{making ? "Making your receipt…" : "Download PDF receipt"}</button>
           <ErrorNote>{pdfError}</ErrorNote>
@@ -137,12 +245,25 @@ export default function Receipt() {
 
           <h2 className="caps">{t("Track your vendors")}</h2>
           <ul className="lines">
-            {booking.vendors.map((v) => (
-              <li key={`${v.category}-${v.vendor}`}>
-                <p>{t(v.category)} <span className="quiet">· {v.vendor}</span></p>
-                <span className={`state ${v.status === "Confirmed" ? "confirmed" : "waiting"}`}>{v.status}</span>
-              </li>
-            ))}
+            {booking.vendors.map((v, index) => {
+              // Older bookings did not record which service each vendor was for; the plan's lines are in the same order.
+              const serviceId = v.serviceId ?? booking.quote.lines[index]?.id;
+              const open = talkingTo === serviceId;
+              const count = messages.filter((m) => m.serviceId === serviceId && m.from === "customer").length;
+              return (
+                <li key={`${v.category}-${v.vendor}`} className="vendor-row">
+                  <div className="vendor-head">
+                    <p>{t(v.category)} <span className="quiet">· {v.vendor}</span></p>
+                    <span className={`state ${v.status === "Confirmed" ? "confirmed" : "waiting"}`}>{v.status}</span>
+                  </div>
+                  <div className="vendor-actions">
+                    <button className="chip" aria-expanded={open} onClick={() => setTalkingTo(open ? "" : serviceId)}>{open ? "Close messages" : count ? `Messages (${count})` : "Message"}</button>
+                    <Link className="chip" to={`/service/${serviceId}#visit`}>Book a visit</Link>
+                  </div>
+                  {open && <Thread booking={booking} serviceId={serviceId} vendor={v.vendor} messages={messages} onSent={setPosted} />}
+                </li>
+              );
+            })}
           </ul>
 
           <h2 className="caps">Your countdown checklist</h2>

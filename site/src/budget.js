@@ -3,10 +3,10 @@
 
 // Which categories matter most for each kind of event; earlier ones are filled and upgraded first.
 export const PRIORITY = {
-  Kwanjula: ["tents", "catering", "sound", "mcs", "photos", "cakes", "venues", "games"],
-  Wedding: ["venues", "catering", "tents", "sound", "photos", "cakes", "mcs", "games"],
-  Graduation: ["catering", "tents", "sound", "photos", "cakes", "mcs", "venues", "games"],
-  Party: ["catering", "sound", "cakes", "games", "tents", "photos", "mcs", "venues"],
+  Kwanjula: ["tents", "catering", "sound", "mcs", "attire", "photos", "cakes", "drinks", "venues", "games"],
+  Wedding: ["venues", "catering", "attire", "tents", "sound", "photos", "cakes", "drinks", "mcs", "games"],
+  Graduation: ["catering", "tents", "sound", "photos", "cakes", "drinks", "mcs", "venues", "attire", "games"],
+  Party: ["catering", "drinks", "sound", "cakes", "games", "tents", "photos", "mcs", "venues", "attire"],
 };
 
 /** Grand total for a set of chosen options: their costs plus the platform fee. */

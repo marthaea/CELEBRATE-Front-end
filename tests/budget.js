@@ -50,3 +50,16 @@ test("a service already booked through the site is not free that day, and a free
   assert.deepEqual(unavailable(ids, free, bookings), ["buffet"]);
   assert.notEqual(nextFreeDate(ids, free, bookings), free);
 });
+
+test("phone numbers and email addresses are taken out of messages", async () => {
+  const { hideContacts } = await import("../server/extras.js");
+  assert.equal(hideContacts("Call me on 0770 123 456 please"), "Call me on [number removed] please");
+  assert.equal(hideContacts("+256 770 123456 or me@example.com"), "[number removed] or [email removed]");
+  assert.equal(hideContacts("We are 250 guests at 3 pm"), "We are 250 guests at 3 pm");
+});
+
+test("a deposit is 30% of the total and leaves the rest as the balance", async () => {
+  const { depositFor } = await import("../server/pricing.js");
+  assert.equal(depositFor(16995000), 5098500);
+  assert.equal(16995000 - depositFor(16995000), 11896500);
+});

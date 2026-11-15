@@ -2,6 +2,10 @@ import { DISTRICTS, EVENT_TYPES } from "./data.js";
 
 export const PLATFORM_FEE_RATE = 0.03;
 
+// Share of the grand total paid when booking; the rest is paid on the day of the event.
+export const DEPOSIT_RATE = 0.3;
+export const depositFor = (total) => Math.round(total * DEPOSIT_RATE);
+
 export function quantityFor(service, event) {
   switch (service.qtyRule) {
     case "perGuest":

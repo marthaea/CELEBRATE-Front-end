@@ -12,6 +12,7 @@ import Budget from "./pages/Budget.jsx";
 import Share from "./pages/Share.jsx";
 import Compare from "./pages/Compare.jsx";
 import Verify from "./pages/Verify.jsx";
+import Privacy from "./pages/Privacy.jsx";
 import { Account, NotFound, Vendors } from "./pages/Simple.jsx";
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/receipt/:id" element={<Receipt />} />
           <Route path="/verify/:id" element={<Verify />} />
           <Route path="/bookings" element={<Bookings />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/account" element={<Account />} />
           <Route path="/vendors" element={<Vendors />} />
           <Route path="*" element={<NotFound />} />

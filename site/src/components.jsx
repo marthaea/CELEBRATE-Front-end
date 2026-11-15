@@ -4,7 +4,7 @@ import { toISODate } from "../../src/format.js";
 import { useLoad } from "../../src/api.js";
 import { more } from "./extra.js";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Building2, CakeSlice, Camera, Gamepad2, Mic, Search, Speaker, Tent, Utensils, X } from "lucide-react";
+import { Building2, CakeSlice, Camera, Gamepad2, Martini, Mic, Search, Shirt, Speaker, Tent, Utensils, X } from "lucide-react";
 import { discountPercent, money } from "../../src/format.js";
 import { usePlan } from "../../src/plan.jsx";
 import { PHOTOS } from "./photos.js";
@@ -13,7 +13,7 @@ import { COMPARE_LIMIT, useCompare } from "./compare.jsx";
 
 const ICONS = {
   venues: Building2, tents: Tent, catering: Utensils, cakes: CakeSlice,
-  sound: Speaker, photos: Camera, mcs: Mic, games: Gamepad2,
+  sound: Speaker, photos: Camera, mcs: Mic, games: Gamepad2, drinks: Martini, attire: Shirt,
 };
 
 /**
@@ -114,19 +114,32 @@ export function Footer() {
   const t = useT();
   return (
     <footer className="footer">
-      <div>
-        <Logo className="small" />
-        <p className="quiet">Tukusanyukidde. Every event service, one platform, one grand total.</p>
+      <div className="footer-top">
+        <div className="footer-lead">
+          <p className="footer-line">Tukusanyukidde.</p>
+          <p className="quiet">Every event service, one platform, one grand total.</p>
+        </div>
+        <nav aria-label="Plan">
+          <h2 className="caps">Plan</h2>
+          <Link to="/services">{t("Services")}</Link>
+          <Link to="/budget">{t("Budget planner")}</Link>
+          <Link to="/#offers">{t("Offers")}</Link>
+          <Link to="/plan">{t("My plan")}</Link>
+        </nav>
+        <nav aria-label="Your account">
+          <h2 className="caps">You</h2>
+          <Link to="/account">{t("Account")}</Link>
+          <Link to="/bookings">{t("Bookings")}</Link>
+          <Link to="/bookings#visits">Appointments</Link>
+        </nav>
+        <nav aria-label="Celebrate">
+          <h2 className="caps">Celebrate</h2>
+          <Link to="/vendors">{t("List my business")}</Link>
+          <Link to="/privacy">Privacy</Link>
+        </nav>
       </div>
-      <nav aria-label="Footer">
-        <Link to="/services">{t("Services")}</Link>
-        <Link to="/budget">{t("Budget planner")}</Link>
-        <Link to="/plan">{t("My plan")}</Link>
-        <Link to="/bookings">{t("Bookings")}</Link>
-        <Link to="/account">{t("Account")}</Link>
-        <Link to="/vendors">{t("List my business")}</Link>
-      </nav>
-      <p className="quiet">Kampala · Mukono · Wakiso · Entebbe · Jinja<br />Photographs from Pexels, for illustration.</p>
+      <p className="footer-small">Kampala · Mukono · Wakiso · Entebbe · Jinja · Photographs from Pexels, for illustration.</p>
+      <p className="footer-word" aria-hidden="true">CELEBRATE</p>
     </footer>
   );
 }

@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BadgeCheck, CalendarCheck, Wallet } from "lucide-react";
 import { usePlan } from "../../../src/plan.jsx";
-import { Art, Mark, PageHead } from "../components.jsx";
+import { api, useLoad } from "../../../src/api.js";
+import { more } from "../extra.js";
+import { Art, ErrorNote, Mark, PageHead } from "../components.jsx";
 import { useT } from "../i18n.jsx";
 
 /** Two halves: a photograph with a message on the left, the page's content on the right. */
@@ -22,16 +24,65 @@ function Split({ photo, heading, line, children }) {
   );
 }
 
+/** Cloudflare Turnstile: a check that the visitor is a person. Calls onToken with the proof, or "" when it lapses. */
+function HumanCheck({ siteKey, onToken, onProblem }) {
+  const box = useRef(null);
+  useEffect(() => {
+    if (!siteKey) return undefined;
+    let widget;
+    let gone = false;
+    const show = () => {
+      if (gone || !box.current || !window.turnstile) return;
+      widget = window.turnstile.render(box.current, {
+        sitekey: siteKey,
+        callback: onToken,
+        "expired-callback": () => onToken(""),
+        "error-callback": () => onProblem("The security check could not run. Check your connection and reload the page."),
+      });
+    };
+    if (window.turnstile) show();
+    else {
+      let script = document.getElementById("turnstile-script");
+      if (!script) {
+        script = document.createElement("script");
+        script.id = "turnstile-script";
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        document.head.append(script);
+      }
+      script.addEventListener("load", show);
+      script.addEventListener("error", () => onProblem("The security check could not load. Check your connection and reload the page."));
+    }
+    return () => {
+      gone = true;
+      if (widget !== undefined) window.turnstile?.remove(widget);
+    };
+  }, [siteKey]);
+  return <div ref={box} className="human-check" />;
+}
+
 export function Account() {
   const plan = usePlan();
   const t = useT();
   const navigate = useNavigate();
+  const meta = useLoad(api.meta, []);
   const [name, setName] = useState(plan.name);
+  const [token, setToken] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
-    plan.setName(name.trim());
-    navigate("/");
+    setError("");
+    setSending(true);
+    try {
+      const result = await more.login({ name, token });
+      plan.setName(result.name);
+      navigate("/");
+    } catch (err) {
+      setError(err.message);
+      setSending(false);
+    }
   };
 
   return (
@@ -44,12 +95,14 @@ export function Account() {
           <span className="caps">{t("Your name")}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Nantongo" autoComplete="given-name" maxLength={40} required />
         </label>
-        <label className="field">
-          <span className="caps">Phone number (optional)</span>
-          <input type="tel" inputMode="tel" placeholder="0770 000 000" autoComplete="tel" maxLength={16} />
-        </label>
-        <button className="button">{t("Continue")}</button>
-        <p className="aside-note">Accounts are not connected yet. Only your name is kept, on this device; the phone number is not saved.</p>
+        <div className="field">
+          <span className="caps">Security check</span>
+          <HumanCheck siteKey={meta.data?.turnstile.siteKey} onToken={setToken} onProblem={setError} />
+          <small className="quiet">Cloudflare confirms you are a person before you are let in.{meta.data?.turnstile.test ? " Running with Cloudflare's test keys, which always pass." : ""}</small>
+        </div>
+        <ErrorNote>{error || meta.error}</ErrorNote>
+        <button className="button" disabled={!token || sending}>{sending ? "Checking…" : t("Continue")}</button>
+        <p className="aside-note">Accounts are not connected yet: only your name is kept, on this device. See our <Link to="/privacy" className="link-quiet">privacy policy</Link>.</p>
       </form>
       <p className="quiet">Run an events business? <Link to="/vendors" className="link-quiet">List it on Celebrate</Link></p>
     </Split>

@@ -26,7 +26,7 @@ export default function Verify() {
     <div className="page centre-page">
       <span className="verdict good"><BadgeCheck size={40} aria-hidden="true" /></span>
       <PageHead eyebrow="Receipt check" title="This booking is genuine">
-        <p className="quiet">{booking.id} · paid {money(booking.paid)} by {booking.method}</p>
+        <p className="quiet">{booking.id} · {booking.balance ? `deposit of ${money(booking.paid)} paid, ${money(booking.balance)} due on the day` : `paid in full, ${money(booking.paid)}`}</p>
       </PageHead>
       <div className="receipt">
         <dl className="sums ruled">

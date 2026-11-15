@@ -106,3 +106,24 @@ where. The fonts are Bricolage Grotesque and DM Sans, both under the SIL Open Fo
 
 Bookings and pledges go through `server/store.js`: memory by default, Netlify Blobs when hosted on
 Netlify (`netlify/functions/api.js`). Replace it with a database when the real backend arrives.
+
+## Deposits, messages, appointments and the login check
+
+| Feature | Where | Notes |
+| --- | --- | --- |
+| Deposit now, balance on the day | pay page, receipt page | 30% deposit (`DEPOSIT_RATE` in `server/pricing.js`). The balance can be paid from the receipt on the day or before. The phone app still pays in full. |
+| Messages with vendors | receipt page, per vendor | Phone numbers and email addresses are removed from messages (`hideContacts` in `server/extras.js`). Vendors have no inbox yet, so only the customer's side is delivered. |
+| Appointments | "before you book" on each service; listed under Bookings | Tastings, fittings, viewings; the kind comes from the category (`visit` in `server/data.js`). |
+| Privacy page | `/privacy` | A draft: needs legal review and contact details before launch. |
+| Login check | log in page | Cloudflare Turnstile. |
+
+### Turning on the real Cloudflare check
+
+Until keys are set, the login uses Cloudflare's public test keys, which always pass. To make it real:
+
+1. In the Cloudflare dashboard open **Turnstile**, add a widget, and enter the site's address (the Netlify address and any custom domain).
+2. Cloudflare gives a **site key** and a **secret key**.
+3. In Netlify open **Site configuration → Environment variables** and add `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`.
+4. Redeploy. The note about test keys on the log in page disappears.
+
+Keep the secret key out of the repository.

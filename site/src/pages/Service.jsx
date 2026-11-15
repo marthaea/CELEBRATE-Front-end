@@ -3,8 +3,74 @@ import { api, useLoad } from "../../../src/api.js";
 import { discountPercent, formatDate, money } from "../../../src/format.js";
 import { usePlan } from "../../../src/plan.jsx";
 import { Art, Calendar, ErrorNote, Loading } from "../components.jsx";
-import { more } from "../extra.js";
+import { localVisits, more } from "../extra.js";
+import { useState } from "react";
+import { toISODate } from "../../../src/format.js";
 import { useT } from "../i18n.jsx";
+
+/** Books a tasting, fitting or viewing with the vendor. Contact stays on the site: no phone numbers are swapped. */
+function Visit({ service, kind }) {
+  const plan = usePlan();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const [date, setDate] = useState(toISODate(tomorrow));
+  const [time, setTime] = useState("");
+  const [name, setName] = useState(plan.name);
+  const [error, setError] = useState("");
+  const [booked, setBooked] = useState(null);
+  const [sending, setSending] = useState(false);
+  const slots = useLoad(() => more.slots(service.id, date), [service.id, date, booked?.id]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSending(true);
+    try {
+      const visit = await more.bookVisit({ serviceId: service.id, date, time, name });
+      localVisits.add(visit.id);
+      setBooked(visit);
+      setTime("");
+    } catch (err) {
+      setError(err.message);
+    }
+    setSending(false);
+  };
+
+  return (
+    <section className="detail" id="visit">
+      <h2 className="caps">{kind} before you book</h2>
+      <p className="quiet">Meet {service.vendor} first. It is free to ask, and no phone numbers are exchanged: everything stays on Celebrate.</p>
+      {booked && (
+        <p className="aside-note" role="status">
+          <strong>{booked.kind} requested</strong> for {formatDate(booked.date)} at {booked.time} with {booked.vendor}. Reference {booked.id}. See it under <Link to="/bookings#visits" className="link-quiet">Appointments</Link>.
+        </p>
+      )}
+      <form className="form" onSubmit={submit} noValidate>
+        <div className="fields">
+          <label className="field">
+            <span className="caps">Date</span>
+            <input type="date" min={toISODate(tomorrow)} value={date} onChange={(e) => { setDate(e.target.value); setTime(""); }} />
+          </label>
+          <label className="field">
+            <span className="caps">Your name</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="name" placeholder="e.g. Nantongo" />
+          </label>
+        </div>
+        <fieldset className="slots">
+          <legend className="caps">Time</legend>
+          {slots.loading && !slots.data && <span className="quiet">Checking times…</span>}
+          {slots.data?.atEvent && <span className="quiet">{service.vendor} is at an event that day. Try another date.</span>}
+          {slots.data && !slots.data.atEvent && slots.data.free.length === 0 && <span className="quiet">No times left that day. Try another date.</span>}
+          {slots.data?.free.map((slot) => (
+            <button type="button" key={slot} className={`chip ${time === slot ? "on" : ""}`} aria-pressed={time === slot} onClick={() => setTime(slot)}>{slot}</button>
+          ))}
+        </fieldset>
+        <ErrorNote>{error || slots.error}</ErrorNote>
+        <button className="button outline" disabled={sending || !time}>{sending ? "Sending…" : `Request ${kind.toLowerCase()}`}</button>
+      </form>
+    </section>
+  );
+}
 
 export default function Service() {
   const { id } = useParams();
@@ -57,6 +123,8 @@ export default function Service() {
           <h2 className="caps">{t("What is included")}</h2>
           <ul>{service.included.map((line) => <li key={line}>{line}</li>)}</ul>
         </section>
+
+        {category?.visit && <Visit service={service} kind={category.visit} />}
 
         {service.review && (
           <section className="detail">

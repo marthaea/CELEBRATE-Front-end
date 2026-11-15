@@ -24,6 +24,7 @@ const LUGANDA = {
   // Categories and filters
   "Venues": "Ebifo", "Tents": "Weema", "Tents and seats": "Weema n'entebe", "Catering": "Emmere", "Cakes": "Keeki",
   "Sound": "Amaloboozi", "Media and sound": "Ebyuma n'amaloboozi", "Photos": "Ebifaananyi", "Photography": "Okukuba ebifaananyi",
+  "Cakes and pastries": "Keeki n'ebirala ebiwooma", "Drinks": "Ebyokunywa", "Drinks and cocktails": "Ebyokunywa", "Attire": "Engoye", "Dresses and attire": "Engoye z'omukolo",
   "MCs": "Ba MC", "Games": "Emizannyo", "All": "Byonna", "Under 500k": "Wansi wa 500k", "Top rated": "Ebisinga okusiimibwa",
   // Actions and labels
   "Add to my plan": "Teeka mu nteekateeka", "Remove from my plan": "Ggya mu nteekateeka", "View my plan": "Laba enteekateeka yange",

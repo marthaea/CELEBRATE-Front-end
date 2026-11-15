@@ -17,6 +17,34 @@ export const more = {
   month: (id, month) => request(`/services/${encodeURIComponent(id)}/availability?month=${month}`),
   pledges: (key) => request(`/pledges/${key}`),
   pledge: (key, data) => request(`/pledges/${key}`, data),
+  login: (data) => request("/login", data),
+  payBalance: (id, payment) => request(`/bookings/${id}/balance`, { payment }),
+  messages: (id) => request(`/bookings/${id}/messages`),
+  sendMessage: (id, serviceId, text) => request(`/bookings/${id}/messages`, { serviceId, text }),
+  slots: (id, date) => request(`/services/${encodeURIComponent(id)}/slots?date=${date}`),
+  bookVisit: (data) => request("/appointments", data),
+  visits: (ids) => request(`/appointments?ids=${ids.join(",")}`),
+  cancelVisit: (id) => request(`/appointments/${id}/cancel`, {}),
+};
+
+// The appointments made in this browser, by id. Without accounts, this is how "my appointments" is known.
+const VISITS = "celebrate.visits.v1";
+export const localVisits = {
+  ids() {
+    try {
+      const list = JSON.parse(localStorage.getItem(VISITS));
+      return Array.isArray(list) ? list.map(String) : [];
+    } catch {
+      return [];
+    }
+  },
+  add(id) {
+    try {
+      localStorage.setItem(VISITS, JSON.stringify([...new Set([id, ...localVisits.ids()])].slice(0, 50)));
+    } catch {
+      // The appointment is still made; it just will not be listed on this device.
+    }
+  },
 };
 
 // Bookings made in this browser are also kept here, so receipts still open if the server forgets them.
